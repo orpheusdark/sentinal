@@ -209,9 +209,12 @@ class RecordingManager:
         month = now.strftime("%m")
         day = now.strftime("%d")
         
+        # Get recordings directory from config
+        config = get_config()
+        recordings_base = config.storage.recordings_dir
+        
         # Create directory structure
-        recording_dir = PathManager.get_recordings_path()
-        video_dir = os.path.join(recording_dir, year, month, day, f"camera_{camera_id}")
+        video_dir = os.path.join(recordings_base, year, month, day, f"camera_{camera_id}")
         Path(video_dir).mkdir(parents=True, exist_ok=True)
         
         # Filename: camera_ID_YYYYMMDD_HHMMSS_microseconds.mp4
