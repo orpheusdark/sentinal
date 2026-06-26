@@ -7,7 +7,7 @@ Uses SQLite with SQLAlchemy ORM.
 
 from sqlalchemy import (
     create_engine, Column, Integer, String, Float, DateTime,
-    Boolean, Text, ForeignKey, Index, event
+    Boolean, Text, ForeignKey, Index, event, text
 )
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
@@ -228,9 +228,9 @@ class DatabaseManager:
         """Enable Write-Ahead Logging for better concurrency."""
         try:
             with self.get_session() as session:
-                session.execute("PRAGMA journal_mode=WAL")
-                session.execute("PRAGMA synchronous=NORMAL")
-                session.execute("PRAGMA cache_size=10000")
+                session.execute(text("PRAGMA journal_mode=WAL"))
+                session.execute(text("PRAGMA synchronous=NORMAL"))
+                session.execute(text("PRAGMA cache_size=10000"))
                 session.commit()
             logger.info("WAL mode enabled")
         except Exception as e:

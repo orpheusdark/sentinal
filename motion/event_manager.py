@@ -27,7 +27,7 @@ class MotionEventManager:
     
     def __init__(self):
         """Initialize motion event manager."""
-        self.current_event: Optional[MotionEvent] = None
+        self.current_event_id: Optional[int] = None
         self.event_history: List[MotionEvent] = []
     
     def on_motion_detected(
@@ -49,7 +49,7 @@ class MotionEventManager:
             session = get_db_session()
             
             # Check if already in active motion event
-            if self.current_event is None or self.current_event.camera_id != camera_id:
+            if self.current_event_id is None:
                 # Start new event
                 event = MotionEvent(
                     camera_id=camera_id,
@@ -60,33 +60,42 @@ class MotionEventManager:
                 )
                 
                 session.add(event)
+                session.flush()  # Get the ID without closing session
+                event_id = event.id
                 session.commit()
+                session.close()
                 
-                self.current_event = event
+                self.current_event_id = event_id
                 logger.info(
                     f"Motion event started: camera_id={camera_id}, "
                     f"contours={result.contour_count}, "
                     f"area={int(result.max_contour_area)}"
                 )
                 
-                session.close()
                 return event
             else:
                 # Update existing event
-                self.current_event.contour_count = result.contour_count
-                self.current_event.max_contour_area = max(
-                    self.current_event.max_contour_area,
-                    int(result.max_contour_area)
-                )
+                event = session.query(MotionEvent).filter(
+                    MotionEvent.id == self.current_event_id
+                ).first()
                 
-                session.merge(self.current_event)
-                session.commit()
+                if event:
+                    event.contour_count = result.contour_count
+                    event.max_contour_area = max(
+                        event.max_contour_area,
+                        int(result.max_contour_area)
+                    )
+                    session.commit()
+                
                 session.close()
-                
-                return self.current_event
+                return event
             
         except Exception as e:
             logger.error(f"Error recording motion event: {e}")
+            try:
+                session.close()
+            except:
+                pass
             return None
     
     def on_motion_ended(self) -> Optional[MotionEvent]:
@@ -96,32 +105,41 @@ class MotionEventManager:
         Returns:
             Completed MotionEvent or None
         """
-        if self.current_event is None:
+        if self.current_event_id is None:
             return None
         
         try:
             session = get_db_session()
             
-            # Update event with end time
-            self.current_event.end_time = datetime.utcnow()
+            # Query and update event with end time
+            event = session.query(MotionEvent).filter(
+                MotionEvent.id == self.current_event_id
+            ).first()
             
-            session.merge(self.current_event)
-            session.commit()
-            
-            event = self.current_event
-            logger.info(
-                f"Motion event ended: id={event.id}, "
-                f"duration={(event.end_time - event.start_time).total_seconds():.1f}s"
-            )
-            
-            self.event_history.append(event)
-            self.current_event = None
+            if event:
+                event.end_time = datetime.utcnow()
+                session.commit()
+                
+                logger.info(
+                    f"Motion event ended: id={event.id}, "
+                    f"duration={(event.end_time - event.start_time).total_seconds():.1f}s"
+                )
+                
+                self.event_history.append(event)
+                self.current_event_id = None
+                
+                session.close()
+                return event
             
             session.close()
-            return event
+            return None
             
         except Exception as e:
             logger.error(f"Error ending motion event: {e}")
+            try:
+                session.close()
+            except:
+                pass
             return None
     
     def get_recent_events(self, camera_id: int, hours: int = 24) -> List[MotionEvent]:
