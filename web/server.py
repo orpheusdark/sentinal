@@ -376,6 +376,36 @@ class WebServer:
                     'error': str(e)
                 }), 500
         
+        # API: Live Frame Stream
+        @self.app.route('/api/stream/frame')
+        def api_stream_frame():
+            """Get current frame as JPEG."""
+            try:
+                if not self.app_context or not self.app_context.stream_manager:
+                    return jsonify({'success': False, 'error': 'Stream manager not available'}), 500
+                
+                # Get frame as base64 JPEG
+                frame_b64 = self.app_context.stream_manager.get_frame_as_jpeg()
+                
+                if not frame_b64:
+                    return jsonify({'success': False, 'error': 'No frame available'}), 404
+                
+                return jsonify({
+                    'success': True,
+                    'data': {
+                        'frame': frame_b64,
+                        'timestamp': datetime.utcnow().isoformat(),
+                        'quality': self.app_context.stream_manager.quality,
+                        'fps': self.app_context.stream_manager.target_fps,
+                    }
+                })
+            except Exception as e:
+                logger.error(f"Error getting stream frame: {e}")
+                return jsonify({
+                    'success': False,
+                    'error': str(e)
+                }), 500
+        
         # Health check endpoint
         @self.app.route('/api/health')
         def api_health():

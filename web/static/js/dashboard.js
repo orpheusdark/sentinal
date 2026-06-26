@@ -41,6 +41,9 @@ class Dashboard {
     }
 
     async startUpdates() {
+        // Start frame stream
+        this.startFrameStream();
+        
         // Update system info
         await this.updateSystemHealth();
         await this.updateDiskUsage();
@@ -54,6 +57,64 @@ class Dashboard {
         setInterval(() => this.updateMotionEvents(), this.refreshInterval * 2);
         setInterval(() => this.updateRecordings(), this.refreshInterval * 3);
         setInterval(() => this.updateCameras(), this.refreshInterval);
+    }
+
+    async startFrameStream() {
+        /**Stream live frames and display on canvas*/
+        const streamFrame = async () => {
+            try {
+                const response = await fetch('/api/stream/frame');
+                const data = await response.json();
+
+                if (data.success && data.data && data.data.frame) {
+                    // Create image from base64
+                    const img = new Image();
+                    img.onload = () => {
+                        try {
+                            // Clear canvas first
+                            this.ctx.fillStyle = '#000';
+                            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                            
+                            // Draw image to canvas
+                            const scale = Math.min(
+                                this.canvas.width / img.width,
+                                this.canvas.height / img.height
+                            );
+                            const x = (this.canvas.width - img.width * scale) / 2;
+                            const y = (this.canvas.height - img.height * scale) / 2;
+                            
+                            this.ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
+                            
+                            // Update FPS counter
+                            this.frameCount++;
+                            const now = Date.now();
+                            if (now - this.lastFrameTime >= 1000) {
+                                this.fps = this.frameCount;
+                                this.frameCount = 0;
+                                this.lastFrameTime = now;
+                                document.getElementById('fps').textContent = this.fps + ' FPS';
+                            }
+                        } catch (e) {
+                            console.error('Error drawing image:', e);
+                        }
+                    };
+                    img.onerror = () => {
+                        console.warn('Failed to load frame image');
+                    };
+                    img.src = 'data:image/jpeg;base64,' + data.data.frame;
+                } else if (!data.success) {
+                    console.warn('Stream error:', data.error);
+                }
+            } catch (error) {
+                console.warn('Error fetching frame:', error);
+            }
+            
+            // Request next frame with 66ms delay (15 FPS)
+            setTimeout(streamFrame, 66);
+        };
+        
+        // Start frame stream
+        streamFrame();
     }
 
     async updateSystemHealth() {
