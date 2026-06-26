@@ -7,7 +7,7 @@ Uses SQLite with SQLAlchemy ORM.
 
 from sqlalchemy import (
     create_engine, Column, Integer, String, Float, DateTime,
-    Boolean, Text, ForeignKey, Index, event, text
+    Boolean, Text, ForeignKey, Index, event, text, inspect
 )
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
@@ -214,7 +214,27 @@ class DatabaseManager:
         """Create all tables and indexes, handling existing schema gracefully."""
         try:
             Base.metadata.create_all(self.engine)
-            logger.info("Database schema initialized")
+            logger.info("Database schema initialized successfully")
+            
+            # Verify camera table exists and create default camera if needed
+            session = self.get_session()
+            tables = inspect(self.engine).get_table_names()
+            logger.info(f"Created tables: {tables}")
+            
+            # Ensure default camera exists
+            camera_count = session.query(Camera).count()
+            if camera_count == 0:
+                default_camera = Camera(
+                    name="Default Camera",
+                    camera_type="builtin",
+                    connection_status="disconnected"
+                )
+                session.add(default_camera)
+                session.commit()
+                logger.info("Created default camera")
+            
+            session.close()
+            
         except Exception as e:
             # Check if it's just an "already exists" error, which is harmless
             error_msg = str(e).lower()
