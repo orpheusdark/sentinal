@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ app_name }} v{{ version }} - Recordings</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <h1>{{ app_name }}</h1>
+                <p class="version">v{{ version }}</p>
+                <nav class="nav">
+                    <a href="/" class="nav-link">Dashboard</a>
+                    <a href="/recordings" class="nav-link active">Recordings</a>
+                    <a href="/settings" class="nav-link">Settings</a>
+                </nav>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Filters Section -->
+            <section class="filters-section">
+                <div class="section-header">
+                    <h2>Recordings</h2>
+                </div>
+                <div class="filter-controls">
+                    <div class="filter-group">
+                        <label for="daysFilter">Time Period:</label>
+                        <select id="daysFilter" class="filter-select">
+                            <option value="1">Last 24 Hours</option>
+                            <option value="7" selected>Last 7 Days</option>
+                            <option value="14">Last 14 Days</option>
+                            <option value="30">Last 30 Days</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="cameraFilter">Camera:</label>
+                        <select id="cameraFilter" class="filter-select">
+                            <option value="">All Cameras</option>
+                            <option value="1">Camera 1</option>
+                            <option value="2">Camera 2</option>
+                        </select>
+                    </div>
+                    <button id="refreshBtn" class="btn btn-primary">Refresh</button>
+                </div>
+            </section>
+
+            <!-- Recordings List -->
+            <section class="recordings-section">
+                <div id="recordingsList" class="recordings-list">
+                    <div class="empty-state">Loading recordings...</div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>&copy; 2026 Project Sentinel. Surveillance system powered by local inference.</p>
+        </footer>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/recordings.js') }}"></script>
+</body>
+</html>

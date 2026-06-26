@@ -13,11 +13,13 @@ Phase 2 successfully implements camera acquisition and lightweight motion detect
 ### 1. Camera Module (`camera/`)
 
 #### Abstract Camera Driver Interface
+
 - `camera/base_driver.py` - Abstract `CameraDriver` class
 - Enables support for multiple camera types through consistent interface
 - Planned extensions: RTSP, MJPEG, IP cameras, Raspberry Pi, ESP32-CAM
 
 #### Built-in/USB Camera Driver
+
 - `camera/drivers/builtin.py` - OpenCV-based `BuiltinCameraDriver`
 - Supports both built-in webcams and USB cameras
 - Resolution presets (360p, 480p, 720p, 1080p)
@@ -25,6 +27,7 @@ Phase 2 successfully implements camera acquisition and lightweight motion detect
 - Error resilience (handles disconnections gracefully)
 
 #### Camera Manager
+
 - `camera/manager.py` - `CameraManager` class
 - Multi-camera support
 - Automatic camera detection
@@ -36,12 +39,14 @@ Phase 2 successfully implements camera acquisition and lightweight motion detect
 ### 2. Motion Detection Module (`motion/`)
 
 #### Motion Detection Result
+
 - `motion/result.py` - `MotionResult` dataclass
 - Encapsulates motion detection results
 - Stores contours, areas, timing, and visualization
 - Dictionary serialization for logging/storage
 
 #### Motion Detector Engine
+
 - `motion/detector.py` - `MotionDetector` class
 - **Algorithm**: MOG2 (Mixture of Gaussians) background subtraction
 - **Features**:
@@ -57,6 +62,7 @@ Phase 2 successfully implements camera acquisition and lightweight motion detect
   - Memory usage: ~50MB overhead
 
 #### Motion Event Manager
+
 - `motion/event_manager.py` - `MotionEventManager` class
 - Creates and closes motion events
 - Stores events to database
@@ -66,6 +72,7 @@ Phase 2 successfully implements camera acquisition and lightweight motion detect
 ### 3. Application Integration (`app.py`)
 
 Updated main application with:
+
 - 8-step initialization sequence (up from 6)
 - Camera manager initialization
 - Motion detector initialization
@@ -76,6 +83,7 @@ Updated main application with:
 ### 4. Tests
 
 #### Camera Tests (`tests/camera/test_camera.py`)
+
 - Driver initialization tests
 - Resolution preset verification
 - Camera connection tests (hardware-dependent)
@@ -83,6 +91,7 @@ Updated main application with:
 - Camera manager tests
 
 #### Motion Tests (`tests/motion/test_motion.py`)
+
 - Result class tests
 - Detector initialization
 - Configuration validation
@@ -162,6 +171,7 @@ Attempt Reconnect (after backoff)
 ### Algorithm: MOG2 (Mixture of Gaussians)
 
 **Why MOG2?**
+
 - Lightweight (uses <5% CPU)
 - Effective for indoor surveillance
 - Handles gradual lighting changes
@@ -169,6 +179,7 @@ Attempt Reconnect (after backoff)
 - 10+ years of proven field use
 
 **Process**:
+
 1. Build background model from first N frames
 2. For each new frame:
    - Apply MOG2 to get foreground mask
@@ -179,13 +190,13 @@ Attempt Reconnect (after backoff)
 
 ### Sensitivity Scale (0-100)
 
-| Range | Level | Behavior |
-|-------|-------|----------|
-| 0-20 | Very Sensitive | Any tiny movement triggers |
-| 20-40 | Sensitive | Small movements trigger |
-| 40-60 | Normal | Medium movements (default: 40) |
-| 60-80 | Less Sensitive | Larger movements only |
-| 80-100 | Very Insensitive | Only major movements |
+| Range  | Level            | Behavior                       |
+| ------ | ---------------- | ------------------------------ |
+| 0-20   | Very Sensitive   | Any tiny movement triggers     |
+| 20-40  | Sensitive        | Small movements trigger        |
+| 40-60  | Normal           | Medium movements (default: 40) |
+| 60-80  | Less Sensitive   | Larger movements only          |
+| 80-100 | Very Insensitive | Only major movements           |
 
 ### Contour Filtering
 
@@ -236,6 +247,7 @@ All settings configurable via JSON + environment variables:
 ```
 
 Environment variable override:
+
 ```bash
 set SENTINEL_MOTION_SENSITIVITY=50
 set SENTINEL_CAMERA_FPS=20
@@ -247,20 +259,23 @@ python app.py
 ## Database Integration
 
 ### Camera Table
+
 ```sql
 INSERT INTO cameras (name, camera_type, enabled, connection_status)
 VALUES ('builtin', 'builtin', true, 'connected')
 ```
 
 ### Motion Events Table
+
 ```sql
 INSERT INTO motion_events (
-    camera_id, start_time, end_time, 
+    camera_id, start_time, end_time,
     contour_count, max_contour_area, sensitivity_level
 ) VALUES (1, now(), null, 15, 5000, 40)
 ```
 
 ### Queries Used
+
 - Save camera on first detection
 - Create motion event on detection
 - Update motion event while ongoing
@@ -273,15 +288,15 @@ INSERT INTO motion_events (
 
 ### Tested Performance (720p @ 15 FPS)
 
-| Metric | Target | Achieved | Status |
-|--------|--------|----------|--------|
-| Startup Time | <15s | ~5-8s | ✅ |
-| Frame Capture | 15 FPS | 15 FPS | ✅ |
-| Motion Detection CPU | <5% | ~2-3% | ✅ |
-| Total Idle CPU | <10% | ~5-8% | ✅ |
-| Memory Usage | <500MB | ~80-120MB | ✅ |
-| Motion Detection Latency | <500ms | ~50-100ms | ✅ |
-| Event DB Write | <50ms | ~10-20ms | ✅ |
+| Metric                   | Target | Achieved  | Status |
+| ------------------------ | ------ | --------- | ------ |
+| Startup Time             | <15s   | ~5-8s     | ✅     |
+| Frame Capture            | 15 FPS | 15 FPS    | ✅     |
+| Motion Detection CPU     | <5%    | ~2-3%     | ✅     |
+| Total Idle CPU           | <10%   | ~5-8%     | ✅     |
+| Memory Usage             | <500MB | ~80-120MB | ✅     |
+| Motion Detection Latency | <500ms | ~50-100ms | ✅     |
+| Event DB Write           | <50ms  | ~10-20ms  | ✅     |
 
 ### Scalability
 
@@ -295,17 +310,20 @@ INSERT INTO motion_events (
 ## Error Handling
 
 ### Camera Failures
+
 - Connection timeout → Log error, return False
 - Frame read failure → Skip frame, return None
 - Disconnection → Trigger reconnect logic
 - Persistent failure → Keep trying with backoff
 
 ### Motion Detection Failures
+
 - Invalid frame → Log, skip, continue
 - Processing error → Log, return default result
 - Memory pressure → Graceful degradation
 
 ### Database Failures
+
 - Write timeout → Log error, continue operation
 - Connection loss → Retry on next event
 - Never crashes main application
@@ -335,12 +353,12 @@ while True:
     frame_data = camera_mgr.get_frame()
     if frame_data is None:
         continue
-    
+
     frame, timestamp, camera_id = frame_data
-    
+
     # Detect motion
     result = motion_detector.process_frame(frame)
-    
+
     if result.motion_detected:
         event = motion_events.on_motion_detected(camera_id, result)
         print(f"Motion detected: {result.contour_count} contours")
@@ -383,6 +401,7 @@ pytest tests/ --cov=camera --cov=motion
 ### New Files (Phase 2)
 
 **Camera Module**:
+
 - `camera/base_driver.py` - Abstract interface (136 lines)
 - `camera/drivers/__init__.py` - Package init
 - `camera/drivers/builtin.py` - OpenCV driver (252 lines)
@@ -390,12 +409,14 @@ pytest tests/ --cov=camera --cov=motion
 - `camera/__init__.py` - Module exports
 
 **Motion Module**:
+
 - `motion/result.py` - Result dataclass (68 lines)
 - `motion/detector.py` - Motion engine (266 lines)
 - `motion/event_manager.py` - Event management (171 lines)
 - `motion/__init__.py` - Module exports
 
 **Tests**:
+
 - `tests/camera/__init__.py`
 - `tests/camera/test_camera.py` - 55 lines
 - `tests/motion/__init__.py`
@@ -412,18 +433,21 @@ pytest tests/ --cov=camera --cov=motion
 ## Next Phase: Phase 3 - Recording & Storage
 
 ### Recording Service
+
 - MP4 encoding with H.264/H.265
 - Triggered by motion events
 - Post-motion buffering
 - Quality presets (low, medium, high)
 
 ### Storage Manager
+
 - Disk usage monitoring
 - Automatic cleanup of old recordings
 - Retention policy enforcement
 - Path organization (YYYY/MM/DD/camera/)
 
 ### Improvements
+
 - Frame dumping to disk
 - Concurrent encoding
 - Thumbnail generation from first frame
@@ -458,12 +482,14 @@ pytest tests/ --cov=camera --cov=motion
 ## Performance Optimization Notes
 
 ### Current Optimizations
+
 - Background buffer minimized
 - Morphological kernels optimized
 - Contour area calculations efficient
 - Database writes batched
 
 ### Future Optimizations
+
 - GPU acceleration support (CUDA)
 - Multi-threading for frame capture
 - Frame downsampling for detection
@@ -474,23 +500,27 @@ pytest tests/ --cov=camera --cov=motion
 ## Deployment Notes
 
 ### System Requirements
+
 - Python 3.10+
 - OpenCV 4.8+ (included in requirements)
 - Windows 10 or Linux with camera support
 
 ### Hardware Verified
+
 - Intel Core i3 (target hardware) ✅
 - Built-in 720p webcam ✅
 - USB webcam ✅
 
 ### Auto-Start
+
 Run with watchdog as before - handles camera recovery automatically:
+
 ```bash
 python watchdog.py
 ```
 
 ---
 
-**Phase 2 is complete and ready for deployment.** 
+**Phase 2 is complete and ready for deployment.**
 
 Motion detection is now working at production quality. Proceed to Phase 3 for recording functionality.

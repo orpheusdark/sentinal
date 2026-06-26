@@ -114,6 +114,65 @@ The watchdog will:
 4. Check system resources
 5. Prevent crash loops
 
+## Web Dashboard
+
+Project Sentinel includes a modern, responsive web dashboard for monitoring and control.
+
+### Accessing the Dashboard
+
+Once the application is running, access the dashboard at:
+
+```
+http://localhost:5000
+```
+
+From another computer on the network:
+
+```
+http://<machine-ip>:5000
+```
+
+### Dashboard Features
+
+**Dashboard Tab**:
+
+- Live video stream from camera
+- Real-time system metrics (CPU, memory, disk)
+- Recording status
+- Motion events from last 24 hours
+- Health indicators for all components
+
+**Recordings Tab**:
+
+- Browse all recorded videos
+- Filter by time period (1-30 days)
+- Filter by camera
+- Download video files
+- View file metadata (duration, size, quality)
+
+**Settings Tab**:
+
+- Adjust camera FPS and resolution
+- Fine-tune motion detection sensitivity
+- Select recording quality
+- Configure storage retention policy
+- Set disk space thresholds
+
+### API Endpoints
+
+Full REST API available for custom integrations:
+
+- `GET /api/system/info` - System information
+- `GET /api/system/health` - Health status
+- `GET /api/system/disk` - Disk usage
+- `GET /api/recordings` - List recordings
+- `GET /api/motion-events` - Recent motion events
+- `GET /api/cameras` - Camera status
+- `GET /api/config` - Current configuration
+- `GET /api/recordings/<id>/download` - Download video file
+
+See [PHASE4_COMPLETE.md](docs/PHASE4_COMPLETE.md) for complete API documentation.
+
 ## Configuration
 
 Configuration is JSON-based and can be overridden with environment variables.
@@ -284,36 +343,54 @@ venv\Scripts\python.exe watchdog.py
 - [x] Watchdog process
 - [x] System monitoring
 
-### Phase 2: Camera & Motion (Next)
+**Documentation**: [PHASE1_COMPLETE.md](docs/PHASE1_COMPLETE.md)
 
-- [ ] Camera abstraction layer
-- [ ] Builtin webcam driver
-- [ ] USB camera support
-- [ ] Motion detection engine
-- [ ] Recording service
+### Phase 2: Camera & Motion ✅
 
-### Phase 3: Storage & Dashboard
+- [x] Camera abstraction layer
+- [x] Builtin webcam driver
+- [x] USB camera support
+- [x] Motion detection engine (MOG2)
+- [x] Motion event tracking
 
-- [ ] Storage manager
-- [ ] Web dashboard (Flask)
-- [ ] Live streaming
-- [ ] Recording playback
-- [ ] System metrics display
+**Documentation**: [PHASE2_COMPLETE.md](docs/PHASE2_COMPLETE.md)
 
-### Phase 4: Advanced Features
+### Phase 3: Recording & Storage ✅
+
+- [x] MP4 H.264 video recording
+- [x] Motion-triggered recording
+- [x] Storage manager with retention policy
+- [x] Disk monitoring and emergency cleanup
+- [x] Database persistence
+
+**Documentation**: [PHASE3_COMPLETE.md](docs/PHASE3_COMPLETE.md)
+
+### Phase 4: Web Dashboard ✅
+
+- [x] Flask web server (port 5000)
+- [x] REST API endpoints (8+)
+- [x] WebSocket frame streaming
+- [x] HTML dashboard templates (3 pages)
+- [x] Real-time system monitoring
+- [x] Recording browser with filters
+- [x] Settings configuration page
+- [x] Responsive design (desktop/tablet/mobile)
+- [x] Comprehensive test suite
+
+**Documentation**: [PHASE4_COMPLETE.md](docs/PHASE4_COMPLETE.md)
+
+**Access Dashboard**: http://localhost:5000
+
+### Phase 5: Advanced Features (Upcoming)
 
 - [ ] Security/Authentication
+- [ ] HTTPS/SSL encryption
 - [ ] Alert system (Telegram, Discord, Email)
-- [ ] Multi-camera support
-- [ ] RTSP/IP camera support
-- [ ] AI/ML framework
-
-### Phase 5: Optimization
-
-- [ ] Performance optimization
+- [ ] Multi-camera web UI
+- [ ] Remote access and tunneling
+- [ ] AI/ML framework integration
 - [ ] Cloud backup (optional)
 - [ ] Mobile app
-- [ ] Analytics dashboard
 
 ## Performance Monitoring
 

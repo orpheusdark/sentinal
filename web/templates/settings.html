@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ app_name }} v{{ version }} - Settings</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <h1>{{ app_name }}</h1>
+                <p class="version">v{{ version }}</p>
+                <nav class="nav">
+                    <a href="/" class="nav-link">Dashboard</a>
+                    <a href="/recordings" class="nav-link">Recordings</a>
+                    <a href="/settings" class="nav-link active">Settings</a>
+                </nav>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Camera Settings -->
+            <section class="settings-section">
+                <div class="section-header">
+                    <h2>Camera Settings</h2>
+                </div>
+                <form id="cameraForm" class="settings-form">
+                    <div class="form-group">
+                        <label for="cameraFps">FPS:</label>
+                        <input type="number" id="cameraFps" name="fps" min="5" max="30" value="15">
+                        <small>Frames per second (5-30)</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="cameraResolution">Resolution:</label>
+                        <select id="cameraResolution" name="resolution">
+                            <option value="360p">360p (640x360)</option>
+                            <option value="480p">480p (640x480)</option>
+                            <option value="720p" selected>720p (1280x720)</option>
+                            <option value="1080p">1080p (1920x1080)</option>
+                        </select>
+                    </div>
+                </form>
+            </section>
+
+            <!-- Motion Detection Settings -->
+            <section class="settings-section">
+                <div class="section-header">
+                    <h2>Motion Detection</h2>
+                </div>
+                <form id="motionForm" class="settings-form">
+                    <div class="form-group">
+                        <label for="motionSensitivity">Sensitivity:</label>
+                        <input type="range" id="motionSensitivity" name="sensitivity" min="0" max="100" value="40">
+                        <div class="range-labels">
+                            <span>Very Sensitive</span>
+                            <span id="sensitivityValue">40</span>
+                            <span>Insensitive</span>
+                        </div>
+                        <small>0 = very sensitive (many false positives), 100 = insensitive (may miss motion)</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="minContourArea">Min Contour Area (pixels):</label>
+                        <input type="number" id="minContourArea" name="min_contour_area" min="100" max="5000" value="500">
+                        <small>Minimum object size to trigger motion</small>
+                    </div>
+                </form>
+            </section>
+
+            <!-- Recording Settings -->
+            <section class="settings-section">
+                <div class="section-header">
+                    <h2>Recording</h2>
+                </div>
+                <form id="recordingForm" class="settings-form">
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="recordingEnabled" name="enabled" checked>
+                            Enabled
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label for="recordingQuality">Quality:</label>
+                        <select id="recordingQuality" name="quality">
+                            <option value="low">Low (1 Mbps, ~7.5 MB/min)</option>
+                            <option value="medium" selected>Medium (2.5 Mbps, ~18.75 MB/min)</option>
+                            <option value="high">High (5 Mbps, ~37.5 MB/min)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="postMotionSeconds">Post-Motion Buffer (seconds):</label>
+                        <input type="number" id="postMotionSeconds" name="post_motion_seconds" min="1" max="30" value="5">
+                        <small>Continue recording N seconds after motion ends</small>
+                    </div>
+                </form>
+            </section>
+
+            <!-- Storage Settings -->
+            <section class="settings-section">
+                <div class="section-header">
+                    <h2>Storage</h2>
+                </div>
+                <form id="storageForm" class="settings-form">
+                    <div class="form-group">
+                        <label for="retentionDays">Retention Period (days):</label>
+                        <input type="number" id="retentionDays" name="retention_days" min="1" max="365" value="30">
+                        <small>Delete recordings older than this number of days</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="criticalDiskPercent">Critical Disk Level (%):</label>
+                        <input type="number" id="criticalDiskPercent" name="critical_disk_percent" min="80" max="99" value="95">
+                        <small>Trigger emergency cleanup at this disk usage percentage</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="targetFreePercent">Target Free Space (%):</label>
+                        <input type="number" id="targetFreePercent" name="target_free_percent" min="10" max="80" value="60">
+                        <small>Clean up until disk usage reaches this percentage</small>
+                    </div>
+                </form>
+            </section>
+
+            <!-- Action Buttons -->
+            <section class="actions-section">
+                <button id="saveBtn" class="btn btn-primary btn-lg">Save Settings</button>
+                <button id="restoreBtn" class="btn btn-secondary btn-lg">Restore Defaults</button>
+                <div id="message" class="message"></div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>&copy; 2026 Project Sentinel. Surveillance system powered by local inference.</p>
+        </footer>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/settings.js') }}"></script>
+</body>
+</html>
