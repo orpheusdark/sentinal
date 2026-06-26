@@ -211,13 +211,18 @@ class DatabaseManager:
         logger.info(f"Database initialized at {self.db_path}")
     
     def _initialize_schema(self):
-        """Create all tables."""
+        """Create all tables and indexes, handling existing schema gracefully."""
         try:
             Base.metadata.create_all(self.engine)
             logger.info("Database schema initialized")
         except Exception as e:
-            logger.error(f"Failed to initialize database schema: {e}")
-            raise
+            # Check if it's just an "already exists" error, which is harmless
+            error_msg = str(e).lower()
+            if "already exists" in error_msg:
+                logger.info("Database schema already exists, skipping creation")
+            else:
+                logger.error(f"Failed to initialize database schema: {e}")
+                raise
     
     def _enable_wal(self):
         """Enable Write-Ahead Logging for better concurrency."""
