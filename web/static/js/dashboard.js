@@ -132,14 +132,28 @@ class Dashboard {
                     cameraStatus.className = 'status-badge status-disconnected';
                     cameraStatus.querySelector('.status-text').textContent = 'Disconnected';
                 }
-
-                // Update recording status (placeholder)
-                const recordingStatus = document.getElementById('recordingStatus');
-                recordingStatus.className = 'status-badge status-stopped';
-                recordingStatus.querySelector('.status-text').textContent = 'Stopped';
             }
         } catch (error) {
             console.error('Error updating health:', error);
+        }
+        
+        // Fetch recording status
+        try {
+            const response = await fetch('/api/recording/status');
+            const data = await response.json();
+            
+            if (data.success) {
+                const recordingStatus = document.getElementById('recordingStatus');
+                if (data.data.is_recording) {
+                    recordingStatus.className = 'status-badge status-connected';
+                    recordingStatus.querySelector('.status-text').textContent = 'Recording';
+                } else {
+                    recordingStatus.className = 'status-badge status-stopped';
+                    recordingStatus.querySelector('.status-text').textContent = 'Stopped';
+                }
+            }
+        } catch (error) {
+            console.error('Error updating recording status:', error);
         }
         
         // Fetch real-time metrics

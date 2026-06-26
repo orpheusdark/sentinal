@@ -196,6 +196,35 @@ class WebServer:
                     'error': str(e)
                 }), 500
         
+        # API: Recording Status
+        @self.app.route('/api/recording/status')
+        def api_recording_status():
+            """Get current recording status."""
+            try:
+                if not self.app_context or not self.app_context.recording_manager:
+                    return jsonify({
+                        'success': False,
+                        'error': 'Recording manager not available'
+                    }), 500
+                
+                is_recording = self.app_context.recording_manager.is_recording
+                current_video = self.app_context.recording_manager.current_video_path
+                
+                return jsonify({
+                    'success': True,
+                    'data': {
+                        'is_recording': is_recording,
+                        'current_video': current_video,
+                        'status': 'Recording' if is_recording else 'Stopped'
+                    }
+                })
+            except Exception as e:
+                logger.error(f"Error getting recording status: {e}")
+                return jsonify({
+                    'success': False,
+                    'error': str(e)
+                }), 500
+        
         # API: Recording List
         @self.app.route('/api/recordings')
         def api_recordings():
