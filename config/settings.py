@@ -9,7 +9,7 @@ import json
 import os
 from pathlib import Path
 from typing import Any, Dict, Optional
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
 import logging
 
 logger = logging.getLogger(__name__)
@@ -115,15 +115,15 @@ class SentinelConfig:
     debug: bool = False
     auto_start: bool = True
     
-    # Sub-configurations
-    camera: CameraConfig
-    motion: MotionConfig
-    recording: RecordingConfig
-    storage: StorageConfig
-    database: DatabaseConfig
-    security: SecurityConfig
-    streaming: StreamingConfig
-    logging: LoggingConfig
+    # Sub-configurations with defaults
+    camera: CameraConfig = field(default_factory=CameraConfig)
+    motion: MotionConfig = field(default_factory=MotionConfig)
+    recording: RecordingConfig = field(default_factory=RecordingConfig)
+    storage: StorageConfig = field(default_factory=StorageConfig)
+    database: DatabaseConfig = field(default_factory=DatabaseConfig)
+    security: SecurityConfig = field(default_factory=SecurityConfig)
+    streaming: StreamingConfig = field(default_factory=StreamingConfig)
+    logging: LoggingConfig = field(default_factory=LoggingConfig)
     
     def __post_init__(self):
         """Validate configuration after initialization."""
