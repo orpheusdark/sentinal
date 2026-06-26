@@ -1,0 +1,80 @@
+"""
+Default Configuration for Project Sentinel
+
+This file is loaded on first run to establish baseline configuration.
+Users can edit this file or set environment variables to override settings.
+"""
+
+{
+  "app_name": "Project Sentinel",
+  "version": "0.1.0",
+  "debug": false,
+  "auto_start": true,
+  
+  "camera": {
+    "enabled": true,
+    "fps": 15,
+    "resolution": "720p",
+    "auto_reconnect": true,
+    "reconnect_interval": 5
+  },
+  
+  "motion": {
+    "enabled": true,
+    "sensitivity": 40,
+    "min_contour_area": 500,
+    "morph_kernel_size": 5,
+    "cooldown_seconds": 2,
+    "background_learning_frames": 30
+  },
+  
+  "recording": {
+    "enabled": true,
+    "record_on_motion": true,
+    "post_motion_seconds": 10,
+    "codec": "mp4v",
+    "quality": "high",
+    "auto_cleanup": true
+  },
+  
+  "storage": {
+    "recordings_dir": "recordings",
+    "snapshots_dir": "snapshots",
+    "logs_dir": "logs",
+    "max_disk_usage_percent": 80,
+    "retention_days": 30,
+    "cleanup_check_interval": 3600
+  },
+  
+  "database": {
+    "path": "data/sentinel.db",
+    "enable_wal": true,
+    "timeout": 30,
+    "check_same_thread": false
+  },
+  
+  "security": {
+    "enable_auth": true,
+    "password_hash_algorithm": "bcrypt",
+    "session_timeout_minutes": 60,
+    "max_login_attempts": 5,
+    "lockout_duration_minutes": 15
+  },
+  
+  "streaming": {
+    "enabled": true,
+    "port": 5000,
+    "quality": "medium",
+    "fps": 15,
+    "bitrate_kbps": 2000
+  },
+  
+  "logging": {
+    "level": "INFO",
+    "format": "json",
+    "max_file_size_mb": 10,
+    "backup_count": 5,
+    "log_to_console": true,
+    "log_to_file": true
+  }
+}

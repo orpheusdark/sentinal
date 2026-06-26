@@ -1,0 +1,41 @@
+# Core dependencies
+opencv-python==4.8.1.78
+numpy==1.24.3
+Pillow==10.0.0
+
+# Web framework
+Flask==3.0.0
+Flask-CORS==4.0.0
+python-socketio==5.9.0
+python-engineio==4.7.1
+
+# Database
+SQLAlchemy==2.0.23
+
+# Configuration and utilities
+python-dotenv==1.0.0
+pydantic==2.4.2
+pyyaml==6.0.1
+
+# System monitoring
+psutil==5.9.6
+py-cpuinfo==9.0.0
+
+# Async and threading
+aiohttp==3.9.0
+asyncio-contextmanager==1.0.0
+
+# Security
+cryptography==41.0.5
+werkzeug==3.0.1
+
+# Logging
+python-json-logger==2.0.7
+
+# Testing
+pytest==7.4.3
+pytest-asyncio==0.21.1
+pytest-cov==4.1.0
+
+# Type hints and validation
+typing-extensions==4.8.0
