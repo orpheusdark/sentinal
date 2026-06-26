@@ -271,7 +271,7 @@ class Application:
                             )
                     else:
                         # Check if motion event ended
-                        if self.context.motion_event_manager.current_event is not None:
+                        if self.context.motion_event_manager.current_event_id is not None:
                             self.context.motion_event_manager.on_motion_ended()
                             # Trigger end of recording
                             self.context.recording_manager.on_motion_ended(timestamp)
