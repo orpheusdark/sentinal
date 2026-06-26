@@ -93,6 +93,37 @@ class WebServer:
             return render_template('settings.html',
                                  app_name=self.config.app_name)
         
+        # API: System Metrics
+        @self.app.route('/api/system/metrics')
+        def api_system_metrics():
+            """Get real-time system metrics."""
+            try:
+                import psutil
+                import shutil
+                
+                mem = psutil.virtual_memory()
+                disk = shutil.disk_usage('/')
+                
+                return jsonify({
+                    'success': True,
+                    'data': {
+                        'cpu_percent': psutil.cpu_percent(interval=0.1),
+                        'memory_percent': mem.percent,
+                        'memory_used_mb': mem.used / (1024**2),
+                        'memory_available_mb': mem.available / (1024**2),
+                        'disk_percent': (disk.used / disk.total) * 100,
+                        'disk_used_gb': disk.used / (1024**3),
+                        'disk_total_gb': disk.total / (1024**3),
+                        'timestamp': datetime.utcnow().isoformat()
+                    }
+                })
+            except Exception as e:
+                logger.error(f"Error getting metrics: {e}")
+                return jsonify({
+                    'success': False,
+                    'error': str(e)
+                }), 500
+        
         # API: System Info
         @self.app.route('/api/system/info')
         def api_system_info():

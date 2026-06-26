@@ -31,8 +31,8 @@ class MotionConfig:
     """Motion detection configuration."""
     
     enabled: bool = True
-    sensitivity: int = 40  # 0-100
-    min_contour_area: int = 500  # pixels
+    sensitivity: int = 30  # 0-100 (lower = more sensitive)
+    min_contour_area: int = 300  # pixels (lower = detects smaller movements)
     morph_kernel_size: int = 5
     cooldown_seconds: int = 2
     background_learning_frames: int = 30

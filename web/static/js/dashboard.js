@@ -141,6 +141,42 @@ class Dashboard {
         } catch (error) {
             console.error('Error updating health:', error);
         }
+        
+        // Fetch real-time metrics
+        try {
+            const response = await fetch('/api/system/metrics');
+            const data = await response.json();
+            
+            if (data.success) {
+                const metrics = data.data;
+                
+                // Update CPU
+                const cpuUsage = document.getElementById('cpuUsage');
+                const cpuBar = document.getElementById('cpuBar');
+                if (cpuUsage && cpuBar) {
+                    cpuUsage.textContent = Math.round(metrics.cpu_percent) + '%';
+                    cpuBar.style.width = metrics.cpu_percent + '%';
+                }
+                
+                // Update Memory
+                const memoryUsage = document.getElementById('memoryUsage');
+                const memoryBar = document.getElementById('memoryBar');
+                if (memoryUsage && memoryBar) {
+                    memoryUsage.textContent = Math.round(metrics.memory_percent) + '%';
+                    memoryBar.style.width = metrics.memory_percent + '%';
+                }
+                
+                // Update Disk
+                const diskUsage = document.getElementById('diskUsage');
+                const diskBar = document.getElementById('diskBar');
+                if (diskUsage && diskBar) {
+                    diskUsage.textContent = Math.round(metrics.disk_percent) + '%';
+                    diskBar.style.width = metrics.disk_percent + '%';
+                }
+            }
+        } catch (error) {
+            console.error('Error updating metrics:', error);
+        }
     }
 
     async updateDiskUsage() {
