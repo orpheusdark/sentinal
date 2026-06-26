@@ -1,3 +1,7 @@
 """Storage management module for Project Sentinel."""
 
-__all__ = []
+from storage.manager import StorageManager
+
+__all__ = [
+    'StorageManager',
+]

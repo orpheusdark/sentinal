@@ -1,3 +1,9 @@
 """Web dashboard module for Project Sentinel."""
 
-__all__ = []
+from web.server import WebServer
+from web.stream import StreamManager
+
+__all__ = [
+    'WebServer',
+    'StreamManager',
+]
