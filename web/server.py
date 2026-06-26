@@ -46,8 +46,13 @@ class WebServer:
         self.debug = debug
         self.config = get_config()
         
-        # Create Flask app
-        self.app = Flask(__name__, template_folder='web/templates', static_folder='web/static')
+        # Get absolute paths for templates and static files
+        base_dir = Path(__file__).parent  # web/ directory
+        template_dir = str(base_dir / 'templates')
+        static_dir = str(base_dir / 'static')
+        
+        # Create Flask app with absolute paths
+        self.app = Flask(__name__, template_folder=template_dir, static_folder=static_dir)
         self.app.config['JSON_SORT_KEYS'] = False
         
         # Enable CORS
