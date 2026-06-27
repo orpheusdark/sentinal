@@ -17,6 +17,11 @@
                     <a href="/" class="nav-link">Dashboard</a>
                     <a href="/recordings" class="nav-link">Recordings</a>
                     <a href="/settings" class="nav-link active">Settings</a>
+                    {% if authenticated %}
+                    <a href="/logout" class="nav-link">Logout{% if username %} ({{ username }}){% endif %}</a>
+                    {% else %}
+                    <a href="/login" class="nav-link">Login</a>
+                    {% endif %}
                 </nav>
             </div>
         </header>

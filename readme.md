@@ -17,6 +17,7 @@ Project Sentinel transforms an old laptop into a reliable surveillance server. I
 - ✅ Self-hosted (no cloud dependency)
 - ✅ Automatic recovery (watchdog monitoring)
 - ✅ Motion-triggered recording
+- ✅ Telegram motion alerts
 - ✅ Multi-camera support (future)
 - ✅ Modern web dashboard
 - ✅ Structured logging
@@ -100,6 +101,17 @@ The application will:
 4. Check system health
 5. Start main event loop
 
+### Run Unattended at Startup
+
+To start Project Sentinel automatically when Windows boots without showing the dashboard login prompt:
+
+1. Open `config/settings.json` and keep `security.enable_auth` set to `false` for unattended use.
+2. Optionally configure Telegram alerts in the new `telegram` section.
+3. Run `setup_autostart.ps1` as Administrator.
+4. The scheduled task launches `start_sentinel.bat --no-auth`, which starts the app in headless mode.
+
+If you want manual login protection during interactive use, leave `security.enable_auth` set to `true` and only use `--no-auth` from the autostart task.
+
 ### Run with Watchdog (Recommended)
 
 ```bash
@@ -158,6 +170,57 @@ http://<machine-ip>:5000
 - Configure storage retention policy
 - Set disk space thresholds
 
+## Telegram Alerts
+
+Project Sentinel can send Telegram alerts when motion is detected.
+
+### Configure Telegram
+
+Add these values to `config/settings.json`:
+
+```json
+"telegram": {
+  "enabled": true,
+  "bot_name": "notice_sentinal_bot",
+  "bot_token": "123456:ABCDEF_your_bot_token",
+  "chat_id": "123456789",
+  "parse_mode": "HTML",
+  "notify_motion": true,
+  "notify_startup": true,
+  "notify_shutdown": false
+}
+```
+
+If you prefer not to store the token in `settings.json`, set these environment variables before starting the app:
+
+```powershell
+$env:SENTINEL_TELEGRAM_BOT_NAME="notice_sentinal_bot"
+$env:SENTINEL_TELEGRAM_BOT_TOKEN="your-bot-token"
+$env:SENTINEL_TELEGRAM_CHAT_ID="your-chat-id"
+python app.py
+```
+
+### Create a Telegram Bot
+
+1. Open Telegram and chat with `@BotFather`.
+2. Send `/newbot` and follow the prompts.
+3. Copy the bot token that BotFather gives you.
+4. Start a chat with your bot and send it a message.
+5. Visit `https://api.telegram.org/bot<token>/getUpdates` to find your `chat_id`.
+
+### What Alerts Include
+
+- Motion detected event
+- Camera name and database ID
+- Timestamp
+- Contour count and motion area
+
+### Troubleshooting
+
+- If alerts do not arrive, verify the bot token and chat ID.
+- Make sure the bot has been started in Telegram at least once.
+- Confirm `telegram.enabled` is set to `true`.
+
 ### API Endpoints
 
 Full REST API available for custom integrations:
@@ -204,6 +267,11 @@ Configuration is JSON-based and can be overridden with environment variables.
   "storage": {
     "retention_days": 30,
     "max_disk_usage_percent": 80
+  },
+  "telegram": {
+    "enabled": false,
+    "bot_token": null,
+    "chat_id": null
   }
 }
 ```
@@ -312,19 +380,23 @@ See [ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed architecture documentat
 
 ## Windows Deployment (Auto-Start)
 
-Configure Windows Task Scheduler to auto-start the watchdog:
+Configure Windows Task Scheduler to auto-start the monitor process:
 
 1. **Create Python script** (`start_sentinel.bat`):
 
 ```batch
 cd C:\Path\To\ProjectSentinel
-venv\Scripts\python.exe watchdog.py
+if exist "venv\Scripts\python.exe" (
+    venv\Scripts\python.exe monitor.py --no-auth
+) else (
+    python monitor.py --no-auth
+)
 ```
 
 2. **Create Task Scheduler task**:
 
 - Trigger: At log on (any user)
-- Action: Start program (start_sentinel.bat)
+- Action: Start program (`start_sentinel.bat`)
 - Settings: Run with highest privileges
 
 3. **Enable auto-login** (Windows Settings):

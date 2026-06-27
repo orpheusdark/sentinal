@@ -54,11 +54,27 @@ Users can edit this file or set environment variables to override settings.
   },
   
   "security": {
-    "enable_auth": true,
+    "enable_auth": false,
+    "admin_username": "admin",
+    "admin_password": "sentinel",
+    "session_secret": "sentinel-session-key",
+    "require_api_key": false,
+    "api_key": null,
     "password_hash_algorithm": "bcrypt",
     "session_timeout_minutes": 60,
     "max_login_attempts": 5,
     "lockout_duration_minutes": 15
+  },
+
+  "telegram": {
+    "enabled": false,
+    "bot_name": "notice_sentinal_bot",
+    "bot_token": null,
+    "chat_id": null,
+    "parse_mode": "HTML",
+    "notify_motion": true,
+    "notify_startup": true,
+    "notify_shutdown": false
   },
   
   "streaming": {
@@ -67,6 +83,14 @@ Users can edit this file or set environment variables to override settings.
     "quality": "medium",
     "fps": 15,
     "bitrate_kbps": 2000
+  },
+  
+  "web": {
+    "host": "0.0.0.0",
+    "port": 5000,
+    "use_https": false,
+    "ssl_cert_path": null,
+    "ssl_key_path": null
   },
   
   "logging": {

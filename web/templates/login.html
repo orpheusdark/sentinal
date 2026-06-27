@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ app_name }} v{{ version }} - Login</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="login-page">
+    <div class="login-shell">
+        <div class="login-card">
+            <div class="login-brand">
+                <p class="login-kicker">Secure access</p>
+                <h1>{{ app_name }}</h1>
+                <p class="login-subtitle">Dashboard login for local surveillance control</p>
+            </div>
+
+            {% if error %}
+            <div class="message message-error">{{ error }}</div>
+            {% endif %}
+
+            {% if locked_out %}
+            <div class="message message-warning">Too many failed attempts. Try again in a few minutes.</div>
+            {% endif %}
+
+            <form class="auth-form" method="post" action="{{ url_for('login') }}">
+                <input type="hidden" name="next" value="{{ next_url }}">
+
+                <label class="form-group">
+                    <span>Username</span>
+                    <input class="auth-input" type="text" name="username" placeholder="admin" autocomplete="username" required>
+                </label>
+
+                <label class="form-group">
+                    <span>Password</span>
+                    <input class="auth-input" type="password" name="password" placeholder="••••••••" autocomplete="current-password" required>
+                </label>
+
+                <button type="submit" class="btn btn-primary btn-lg auth-submit">Sign In</button>
+            </form>
+
+            <div class="login-footnote">
+                <p>Default credentials are defined in <strong>config/settings.json</strong>.</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

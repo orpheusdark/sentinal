@@ -13,6 +13,18 @@ from camera import BuiltinCameraDriver, CameraManager
 from config import CameraConfig
 
 
+def _has_camera() -> bool:
+    """Check if a camera is available."""
+    try:
+        import cv2
+        cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+        result = cap.isOpened()
+        cap.release()
+        return result
+    except Exception:
+        return False
+
+
 class TestBuiltinCameraDriver:
     """Test built-in camera driver."""
     

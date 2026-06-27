@@ -28,6 +28,7 @@ class MotionEventManager:
     def __init__(self):
         """Initialize motion event manager."""
         self.current_event_id: Optional[int] = None
+        self.current_event: Optional[MotionEvent] = None
         self.event_history: List[MotionEvent] = []
     
     def on_motion_detected(
@@ -66,6 +67,7 @@ class MotionEventManager:
                 session.close()
                 
                 self.current_event_id = event_id
+                self.current_event = event
                 logger.info(
                     f"Motion event started: camera_id={camera_id}, "
                     f"contours={result.contour_count}, "
@@ -126,6 +128,7 @@ class MotionEventManager:
                 )
                 
                 self.event_history.append(event)
+                self.current_event = None
                 self.current_event_id = None
                 
                 session.close()

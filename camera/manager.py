@@ -40,6 +40,7 @@ class CameraManager:
         """
         self.config = config
         self.cameras: Dict[str, CameraDriver] = {}
+        self.camera_db_ids: Dict[str, int] = {}
         self.camera_health: Dict[str, dict] = {}
         self.reconnect_intervals: Dict[str, int] = {}
         self.last_reconnect_attempt: Dict[str, float] = {}
@@ -94,7 +95,10 @@ class CameraManager:
             
             if driver.connect():
                 camera_id = driver.camera_id
+                camera_db_id = self._save_camera_to_db(driver)
                 self.cameras[camera_id] = driver
+                if camera_db_id is not None:
+                    self.camera_db_ids[camera_id] = camera_db_id
                 self.camera_health[camera_id] = {
                     "connected": True,
                     "last_frame_time": datetime.utcnow(),
@@ -102,9 +106,6 @@ class CameraManager:
                     "error_count": 0,
                 }
                 self.reconnect_intervals[camera_id] = self.config.reconnect_interval
-                
-                # Save to database
-                self._save_camera_to_db(driver)
                 
                 logger.info(f"Built-in camera detected and connected: {camera_id}")
                 return True
@@ -116,8 +117,8 @@ class CameraManager:
             logger.error(f"Error detecting built-in camera: {e}")
             return False
     
-    def _save_camera_to_db(self, driver: CameraDriver):
-        """Save camera info to database."""
+    def _save_camera_to_db(self, driver: CameraDriver) -> Optional[int]:
+        """Save camera info to database and return the database ID."""
         try:
             session = get_db_session()
             
@@ -128,8 +129,9 @@ class CameraManager:
             ).first()
             
             if existing:
+                camera_id = existing.id
                 session.close()
-                return
+                return camera_id
             
             # Create new camera record
             camera = Camera(
@@ -141,12 +143,51 @@ class CameraManager:
             
             session.add(camera)
             session.commit()
+            session.refresh(camera)
+            camera_id = camera.id
             session.close()
             
             logger.info(f"Camera saved to database: {driver.name}")
+            return camera_id
             
         except Exception as e:
             logger.error(f"Error saving camera to database: {e}")
+            return None
+
+    def get_camera_database_id(self, camera_id: Optional[str] = None) -> Optional[int]:
+        """
+        Get the database camera ID for a driver camera ID.
+
+        Args:
+            camera_id: Driver camera ID (if None, resolves the first connected camera)
+
+        Returns:
+            Database camera ID or None if it cannot be resolved
+        """
+        with self._lock:
+            driver = self.get_camera(camera_id)
+            if driver is None:
+                return None
+
+            db_id = self.camera_db_ids.get(driver.camera_id)
+            if db_id is not None:
+                return db_id
+
+            try:
+                session = get_db_session()
+                camera = session.query(Camera).filter_by(
+                    name=driver.name,
+                    camera_type="builtin"
+                ).first()
+                session.close()
+
+                if camera:
+                    self.camera_db_ids[driver.camera_id] = camera.id
+                    return camera.id
+            except Exception as e:
+                logger.error(f"Error resolving camera database ID: {e}")
+
+            return None
     
     def get_camera(self, camera_id: Optional[str] = None) -> Optional[CameraDriver]:
         """

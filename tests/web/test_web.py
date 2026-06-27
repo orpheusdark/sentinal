@@ -203,12 +203,12 @@ class TestWebServerIntegration:
     def test_static_files_exist(self):
         """Test that static files are configured."""
         server = WebServer()
-        assert server.app.static_folder == 'web/static'
+        assert server.app.static_folder.endswith(str(Path('web') / 'static'))
     
     def test_template_files_exist(self):
         """Test that template folder is configured."""
         server = WebServer()
-        assert server.app.template_folder == 'web/templates'
+        assert server.app.template_folder.endswith(str(Path('web') / 'templates'))
 
 
 class TestStreamManagerPerformance:

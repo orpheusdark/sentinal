@@ -50,6 +50,7 @@ class Dashboard {
         await this.updateMotionEvents();
         await this.updateRecordings();
         await this.updateCameras();
+        await this.updateAnalytics();
 
         // Set intervals for continuous updates
         setInterval(() => this.updateSystemHealth(), this.refreshInterval);
@@ -57,35 +58,30 @@ class Dashboard {
         setInterval(() => this.updateMotionEvents(), this.refreshInterval * 2);
         setInterval(() => this.updateRecordings(), this.refreshInterval * 3);
         setInterval(() => this.updateCameras(), this.refreshInterval);
+        setInterval(() => this.updateAnalytics(), this.refreshInterval * 3);
     }
 
     async startFrameStream() {
-        /**Stream live frames and display on canvas*/
         const streamFrame = async () => {
             try {
                 const response = await fetch('/api/stream/frame');
                 const data = await response.json();
 
                 if (data.success && data.data && data.data.frame) {
-                    // Create image from base64
                     const img = new Image();
                     img.onload = () => {
                         try {
-                            // Clear canvas first
                             this.ctx.fillStyle = '#000';
                             this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-                            
-                            // Draw image to canvas
+
                             const scale = Math.min(
                                 this.canvas.width / img.width,
                                 this.canvas.height / img.height
                             );
                             const x = (this.canvas.width - img.width * scale) / 2;
                             const y = (this.canvas.height - img.height * scale) / 2;
-                            
                             this.ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
-                            
-                            // Update FPS counter
+
                             this.frameCount++;
                             const now = Date.now();
                             if (now - this.lastFrameTime >= 1000) {
@@ -108,12 +104,10 @@ class Dashboard {
             } catch (error) {
                 console.warn('Error fetching frame:', error);
             }
-            
-            // Request next frame with 66ms delay (15 FPS)
+
             setTimeout(streamFrame, 66);
         };
-        
-        // Start frame stream
+
         streamFrame();
     }
 

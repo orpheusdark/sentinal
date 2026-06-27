@@ -17,6 +17,11 @@
                     <a href="/" class="nav-link active">Dashboard</a>
                     <a href="/recordings" class="nav-link">Recordings</a>
                     <a href="/settings" class="nav-link">Settings</a>
+                    {% if authenticated %}
+                    <a href="/logout" class="nav-link">Logout{% if username %} ({{ username }}){% endif %}</a>
+                    {% else %}
+                    <a href="/login" class="nav-link">Login</a>
+                    {% endif %}
                 </nav>
             </div>
         </header>
@@ -114,6 +119,20 @@
                         <div class="metric-bar">
                             <div id="diskBar" class="metric-fill"></div>
                         </div>
+                    </div>
+
+                    <!-- Camera Count -->
+                    <div class="metric-card">
+                        <h3>Camera Count</h3>
+                        <div class="metric-value" id="cameraCount">0</div>
+                        <div class="metric-text small">connected cameras</div>
+                    </div>
+
+                    <!-- Motion Events -->
+                    <div class="metric-card">
+                        <h3>Motion Events</h3>
+                        <div class="metric-value" id="motionEventsCount">0</div>
+                        <div class="metric-text small">last 24h</div>
                     </div>
 
                     <!-- Recording Count -->

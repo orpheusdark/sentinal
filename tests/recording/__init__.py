@@ -1,3 +1,0 @@
-"""
-Recording Tests Package
-"""

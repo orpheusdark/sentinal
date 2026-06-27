@@ -58,6 +58,9 @@ class StorageConfig:
     snapshots_dir: str = "snapshots"
     logs_dir: str = "logs"
     max_disk_usage_percent: int = 80
+    warning_disk_percent: int = 80
+    critical_disk_percent: int = 95
+    target_free_percent: int = 60
     retention_days: int = 30
     cleanup_check_interval: int = 3600  # seconds
 
@@ -76,11 +79,30 @@ class DatabaseConfig:
 class SecurityConfig:
     """Security configuration."""
     
-    enable_auth: bool = True
+    enable_auth: bool = False
+    admin_username: str = "admin"
+    admin_password: str = "sentinel"
+    session_secret: str = "sentinel-session-key"
+    require_api_key: bool = False
+    api_key: Optional[str] = None
     password_hash_algorithm: str = "bcrypt"
     session_timeout_minutes: int = 60
     max_login_attempts: int = 5
     lockout_duration_minutes: int = 15
+
+
+@dataclass
+class TelegramConfig:
+    """Telegram alerting configuration."""
+
+    enabled: bool = False
+    bot_name: Optional[str] = None
+    bot_token: Optional[str] = None
+    chat_id: Optional[str] = None
+    parse_mode: str = "HTML"
+    notify_motion: bool = True
+    notify_startup: bool = True
+    notify_shutdown: bool = False
 
 
 @dataclass
@@ -107,6 +129,17 @@ class LoggingConfig:
 
 
 @dataclass
+class WebConfig:
+    """Web server configuration."""
+    
+    host: str = "0.0.0.0"
+    port: int = 5000
+    use_https: bool = False
+    ssl_cert_path: Optional[str] = None
+    ssl_key_path: Optional[str] = None
+
+
+@dataclass
 class SentinelConfig:
     """Main application configuration."""
     
@@ -122,7 +155,9 @@ class SentinelConfig:
     storage: StorageConfig = field(default_factory=StorageConfig)
     database: DatabaseConfig = field(default_factory=DatabaseConfig)
     security: SecurityConfig = field(default_factory=SecurityConfig)
+    telegram: TelegramConfig = field(default_factory=TelegramConfig)
     streaming: StreamingConfig = field(default_factory=StreamingConfig)
+    web: WebConfig = field(default_factory=WebConfig)
     logging: LoggingConfig = field(default_factory=LoggingConfig)
     
     def __post_init__(self):
@@ -222,7 +257,9 @@ class ConfigManager:
             "storage": asdict(StorageConfig()),
             "database": asdict(DatabaseConfig()),
             "security": asdict(SecurityConfig()),
+            "telegram": asdict(TelegramConfig()),
             "streaming": asdict(StreamingConfig()),
+            "web": asdict(WebConfig()),
             "logging": asdict(LoggingConfig()),
         }
     
@@ -246,6 +283,18 @@ class ConfigManager:
         
         for key in os.environ:
             if key.startswith(env_prefix):
+                if key == "SENTINEL_TELEGRAM_BOT_TOKEN":
+                    config.setdefault("telegram", {})["bot_token"] = os.environ[key]
+                    continue
+
+                if key == "SENTINEL_TELEGRAM_BOT_NAME":
+                    config.setdefault("telegram", {})["bot_name"] = os.environ[key]
+                    continue
+
+                if key == "SENTINEL_TELEGRAM_CHAT_ID":
+                    config.setdefault("telegram", {})["chat_id"] = os.environ[key]
+                    continue
+
                 # Convert SENTINEL_CAMERA_FPS to camera.fps
                 config_path = key[len(env_prefix):].lower()
                 value = os.environ[key]
@@ -292,7 +341,9 @@ class ConfigManager:
             storage=StorageConfig(**config_dict.get("storage", {})),
             database=DatabaseConfig(**config_dict.get("database", {})),
             security=SecurityConfig(**config_dict.get("security", {})),
+            telegram=TelegramConfig(**config_dict.get("telegram", {})),
             streaming=StreamingConfig(**config_dict.get("streaming", {})),
+            web=WebConfig(**config_dict.get("web", {})),
             logging=LoggingConfig(**config_dict.get("logging", {})),
         )
     

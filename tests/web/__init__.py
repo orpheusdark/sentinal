@@ -1,3 +1,0 @@
-"""
-Web Server Tests Package
-"""

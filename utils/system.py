@@ -42,11 +42,17 @@ class SystemInfo:
     def get_disk_info(path: str = "/") -> Dict[str, Any]:
         """Get disk information."""
         disk = shutil.disk_usage(path)
+        used_percent = (disk.used / disk.total) * 100
         return {
+            "total": disk.total,
+            "used": disk.used,
+            "free": disk.free,
             "total_gb": disk.total / (1024**3),
             "used_gb": disk.used / (1024**3),
             "free_gb": disk.free / (1024**3),
-            "percent": (disk.used / disk.total) * 100,
+            "used_percent": used_percent,
+            "free_percent": 100 - used_percent,
+            "percent": used_percent,
         }
     
     @staticmethod
