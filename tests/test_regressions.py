@@ -158,6 +158,14 @@ def test_recording_disabled_does_not_start():
     manager._start_recording.assert_not_called()
 
 
+def test_continuous_recording_does_not_schedule_motion_tail():
+    from recording.manager import RecordingManager
+    get_config().recording.record_on_motion = False
+    manager = RecordingManager()
+    manager.on_motion_ended(datetime.utcnow())
+    assert manager.post_motion_buffer_end is None
+
+
 def test_jpeg_cached_and_frame_ownership(monkeypatch):
     import web.stream as stream
     manager = stream.StreamManager()

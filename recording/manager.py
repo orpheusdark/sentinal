@@ -99,6 +99,9 @@ class RecordingManager:
         with self.lock:
             self.motion_active = False
             self.motion_end_time = motion_end_time
+            if not self.config.record_on_motion:
+                self.post_motion_buffer_end = None
+                return
             
             # Set post-motion buffer timer
             post_buffer = self.config.post_motion_seconds if hasattr(self.config, 'post_motion_seconds') else 5
