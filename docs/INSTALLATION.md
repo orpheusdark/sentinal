@@ -23,10 +23,9 @@ python -m venv .venv
 
 Windows convenience launcher: `scripts/start-windows.bat`.
 
-macOS/Linux: `sh scripts/start-unix.sh`, or create a virtual environment with `python3 -m venv .venv`, install requirements using `.venv/bin/python -m pip`, and run `.venv/bin/python desktop.py`. Linux may require the distribution's `python3-tk`, `python3-venv` and OpenCV GUI libraries. Headless operation uses `python app.py --config config/local.json` without the desktop launcher.
+Linux: `sh scripts/start-unix.sh`, or create a virtual environment with `python3 -m venv .venv`, install requirements using `.venv/bin/python -m pip`, and run `.venv/bin/python desktop.py`. Linux may require the distribution's `python3-tk`, `python3-venv` and OpenCV GUI libraries. Headless operation uses `python app.py --config config/local.json` without the desktop launcher.
 
 The default dashboard is http://127.0.0.1:5000. First startup creates an empty database. If a camera is absent, the dashboard remains available and camera discovery retries every 30 seconds.
 
 ## Other devices
 
-macOS and Linux native bundles must be built on their target OS; the manual GitHub Actions desktop workflow provides build jobs. Those builds still require platform acceptance testing. Windows binaries cannot run on macOS, Linux, Android or iOS. Phones and tablets can use the responsive browser dashboard of a securely configured host; they are not native camera-server apps. See [Deployment](DEPLOYMENT.md).

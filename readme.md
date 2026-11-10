@@ -19,7 +19,6 @@
 |---|---|---|
 | Windows x64 | [Setup executable](https://github.com/orpheusdark/sentinal/releases/download/v0.2.0-preview.1/Sentinel-Setup-Windows.exe) | Run setup → Install Sentinel → Open Sentinel |
 | Windows x64, portable | [Portable ZIP](https://github.com/orpheusdark/sentinal/releases/download/v0.2.0-preview.1/Sentinel-Windows-portable.zip) | Extract everything; open `Sentinel/Sentinel.exe` |
-| macOS, Apple Silicon | [Application ZIP](https://github.com/orpheusdark/sentinal/releases/download/v0.2.0-preview.1/Sentinel-macOS-AppleSilicon.zip) | Extract `Sentinel.app`; distribution signing/notarization remains pending |
 | Linux x86-64 | [Application archive](https://github.com/orpheusdark/sentinal/releases/download/v0.2.0-preview.1/Sentinel-Linux-x86_64.tar.gz) | Extract; run `./Sentinel/Sentinel` |
 
 Verify downloads with [SHA-256 checksums](https://github.com/orpheusdark/sentinal/releases/download/v0.2.0-preview.1/SHA256SUMS.txt). See [installation requirements](docs/INSTALLATION.md) and [release notes](docs/releases/0.2.0-preview.1.md) before deploying.
@@ -61,7 +60,7 @@ Windows:
 .\.venv\Scripts\python desktop.py
 ```
 
-macOS / Linux:
+Linux:
 
 ```sh
 .venv/bin/python -m pip install -r requirements.txt
@@ -85,7 +84,7 @@ The [documentation index](docs/README.md) links all current guides. Historical p
 
 ## Verification and release status
 
-The final local application test run passed **92 tests**, including basic webcam checks. GitHub verification passed on Windows, macOS and Linux with Python 3.11 and 3.12. Native builds and frozen-resource checks passed on all three platforms. See [recorded verification and limitations](docs/VERIFICATION.md).
+The final local application test run passed **92 tests**, including basic webcam checks. GitHub verification passed on Windows and Linux with Python 3.11 and 3.12. Native builds and frozen-resource checks passed on all three platforms. See [recorded verification and limitations](docs/VERIFICATION.md).
 
 This preview still needs full GUI installation, real-world recording/cleanup soak tests and browser visual acceptance. Desktop packages do not have distribution signing. Independent multi-camera pipelines, AI detection, cloud backup and automatic updates are future work.
 
