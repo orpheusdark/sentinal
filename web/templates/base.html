@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Sentinel{% endblock %} · {{ app_name }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/features.css') }}">
+</head>
+<body><div class="container">
+  <a class="skip-link" href="#main">Skip to content</a>
+  {% include '_header.html' %}
+  <main id="main" class="main-content">{% block content %}{% endblock %}</main>
+  <footer class="footer"><span>SENTINEL / LOCAL FIRST</span><span>Video stays on this device · v{{ version }}</span></footer>
+</div>{% block scripts %}{% endblock %}</body>
+</html>

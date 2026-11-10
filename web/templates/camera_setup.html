@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+{% block title %}Camera setup{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">DEVICES / SETUP WIZARD</p><h1>Camera control</h1><p>Discover, preview and configure each feed independently.</p></div><span class="node-label">WINDOWS / LINUX</span></div>
+<section class="filters-section">
+  <div class="section-header"><h2>1 · Find your cameras</h2><button id="scanBtn" class="btn btn-primary">Detect cameras</button></div>
+  <p class="help-text">Scans local device indices 0–7. Close other camera apps if a device is unavailable. Start with 720p at 15 FPS and check Diagnostics before adding more feeds.</p>
+  <div id="discoveredDevices" class="device-results"></div>
+  <div id="setupMessage" role="status" aria-live="polite" class="message"></div>
+</section>
+<div class="setup-layout">
+  <aside class="settings-section"><div class="section-header"><h2>Configured feeds</h2></div><div id="profileList" class="profile-list"></div><button id="addCameraBtn" class="btn">Add manually</button><p class="help-text">Up to eight cameras. Hardware capacity depends on resolution, FPS and optional inference.</p></aside>
+  <section class="settings-section" id="profileEditor">
+    <div class="section-header"><h2>2 · Preview and tune</h2><button id="previewBtn" class="btn">Capture preview</button></div>
+    <form id="cameraForm" class="camera-form">
+      <div class="settings-form">
+        <div class="form-group"><label for="deviceIndex">Device index</label><input id="deviceIndex" type="number" min="0" max="15" required></div>
+        <div class="form-group"><label for="cameraName">Camera name</label><input id="cameraName" type="text" maxlength="80" required></div>
+        <div class="form-group"><label for="profileFps">Frame rate (FPS)</label><input id="profileFps" type="number" min="1" max="60" required></div>
+        <div class="form-group"><label for="profileResolution">Resolution</label><select id="profileResolution"><option>360p</option><option>480p</option><option>720p</option><option>1080p</option></select></div>
+        <label class="check-label"><input id="cameraEnabled" type="checkbox">Camera enabled</label>
+        <label class="check-label"><input id="motionEnabled" type="checkbox">Motion detection enabled</label>
+        <div class="form-group"><label for="profileSensitivity">Motion threshold (lower detects more)</label><input id="profileSensitivity" type="number" min="0" max="100" required></div>
+        <div class="form-group"><label for="profileArea">Minimum movement area (pixels)</label><input id="profileArea" type="number" min="1" max="10000000" required></div>
+        <label class="check-label"><input id="recordingEnabled" type="checkbox">Recording enabled</label>
+        <div class="form-group"><label for="recordingMode">Recording mode</label><select id="recordingMode"><option value="motion">On motion</option><option value="continuous">Continuous</option></select></div>
+        <div class="form-group"><label for="profileTail">Post-motion tail (seconds)</label><input id="profileTail" type="number" min="0" max="300" required></div>
+        <div class="form-group"><label for="profileSegment">Maximum video length (seconds)</label><input id="profileSegment" type="number" min="1" max="3600" required></div>
+      </div>
+      <label class="check-label"><input id="objectDetection" type="checkbox">Filter motion to people / vehicles</label>
+      <p class="help-text">Optional and CPU-intensive. Built-in mode detects people. Vehicle detection requires a compatible local COCO ONNX model configured on the host; no model is downloaded automatically.</p>
+      <div class="setup-preview"><canvas id="setupCanvas" width="1280" height="720" role="img" aria-label="Camera preview and configured motion zones">Camera preview</canvas></div>
+      <p id="previewInfo" class="help-text" role="status">Capture a preview to check framing. Requested and actual camera settings can differ.</p>
+      <h3>Motion zones</h3><p class="help-text">Drag a rectangle on the preview, or add normalized coordinates below. No zones means the whole image.</p>
+      <div class="zone-controls"><label>X<input id="zoneX" type="number" min="0" max="1" step="0.01" value="0"></label><label>Y<input id="zoneY" type="number" min="0" max="1" step="0.01" value="0"></label><label>Width<input id="zoneW" type="number" min="0.01" max="1" step="0.01" value="1"></label><label>Height<input id="zoneH" type="number" min="0.01" max="1" step="0.01" value="1"></label><button id="addZoneBtn" type="button" class="btn">Add zone</button><button id="clearZonesBtn" type="button" class="btn">Clear zones</button></div>
+      <div id="zoneList" class="zone-list"></div>
+      <h3>3 · Set an active schedule</h3><p class="help-text">Schedules use the host computer's local time. With no windows, the feed records at any time. Overnight windows are supported.</p>
+      <div id="scheduleRows" class="schedule-rows"></div><button id="addScheduleBtn" type="button" class="btn">Add schedule window</button>
+      <div class="actions-section"><button id="removeCameraBtn" type="button" class="btn">Remove from configuration</button></div>
+    </form>
+  </section>
+</div>
+<section class="actions-section"><button id="saveCamerasBtn" class="btn btn-primary btn-lg">Save camera profiles</button><p class="help-text">Restart Sentinel after saving to apply device and pipeline changes.</p></section>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/camera_setup.js') }}"></script>{% endblock %}

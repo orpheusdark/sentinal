@@ -5,25 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ app_name }} v{{ version }} - Recordings</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/features.css') }}">
 </head>
 <body>
     <div class="container">
         <!-- Header -->
         <a class="skip-link" href="#main">Skip to content</a>
-        <header class="header">
-          <a class="brand" href="/" aria-label="Sentinel dashboard"><span class="brand-icon">S</span><span>SENTINEL<small>LOCAL SURVEILLANCE NETWORK</small></span></a>
-          <nav class="nav" aria-label="Main navigation">
-          {% for href, label in [('/', 'Overview'), ('/recordings', 'Recordings'), ('/settings', 'Settings')] %}
-          <a href="{{ href }}" class="nav-link{% if request.path == href %} active{% endif %}" {% if request.path == href %}aria-current="page"{% endif %}>{{ label }}</a>
-          {% endfor %}
-          {% if auth_enabled %}<a href="/logout" class="nav-link">Sign out</a>{% endif %}
-          </nav>
-          <div class="network-tag">PRIVATE / LOCAL</div>
-        </header>
+        {% include '_header.html' %}
 
         <!-- Main Content -->
         <main id="main" class="main-content">
-          <div class="page-heading"><div><p class="eyebrow">SENTINEL / CONTROL CENTER</p><h1>Recording archive</h1><p>Review and download captured activity.</p></div><span class="node-label">NODE / 01</span></div>
+          <div class="page-heading"><div><p class="eyebrow">SENTINEL / CONTROL CENTER</p><h1>Recording archive</h1><p>Explore the event timeline, preview recordings and download original videos.</p></div><span class="node-label">NODE / 01</span></div>
             <!-- Filters Section -->
             <section class="filters-section">
                 <div class="section-header">
@@ -50,6 +42,7 @@
                 </div>
             </section>
 
+            <section class="events-section"><div class="section-header"><h2>Event timeline</h2><span class="help-text">Uses the selected camera and time period</span></div><div id="activityTimeline" class="activity-timeline" role="list"><p class="empty-state">Loading activity…</p></div></section>
             <!-- Recordings List -->
             <section class="recordings-section">
                 <div id="recordingsList" class="recordings-list">
@@ -62,6 +55,13 @@
         <footer class="footer"><span>SENTINEL / LOCAL FIRST</span><span>Video stays on this device · v{{ version }}</span></footer>
     </div>
 
+    <dialog id="playbackDialog" class="playback-dialog" aria-labelledby="playbackTitle">
+      <div class="section-header"><h2 id="playbackTitle">Recording playback</h2><button id="closePlaybackBtn" class="btn" aria-label="Close playback">Close</button></div>
+      <div class="playback-screen"><img id="playbackImage" alt="Selected recording preview"></div>
+      <p id="playbackMessage" class="help-text" role="status">Loading recording…</p>
+      <div class="playback-controls"><button id="playPauseBtn" class="btn btn-primary">Play</button><label for="playbackSeek">Position</label><input id="playbackSeek" type="range" min="0" max="1" step="0.1" value="0"><output id="playbackTime">0:00 / 0:00</output><a id="playbackDownload" class="btn">Download original</a></div>
+      <p class="help-text">Seekable 5 FPS review preview. Download the original for full recording frame rate. Camera recordings contain video only.</p>
+    </dialog>
     <script src="{{ url_for('static', filename='js/recordings.js') }}"></script>
 </body>
 </html>

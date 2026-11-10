@@ -56,6 +56,7 @@ class MotionDetector:
         # State tracking
         self.frame_count = 0
         self.motion_cooldown = 0
+        self._cooldown_until = 0
         
         logger.info(f"Motion detector initialized")
         logger.info(f"  Sensitivity: {config.sensitivity}")
@@ -85,6 +86,9 @@ class MotionDetector:
             
             # Update background model
             fg_mask = self.bg_subtractor.apply(frame)
+            if self.config.zones:
+                from motion.policy import zone_mask
+                fg_mask = cv2.bitwise_and(fg_mask, zone_mask(frame.shape, self.config.zones))
             result.background_age = self.frame_count
             
             # Noise reduction: morphological operations
@@ -128,12 +132,14 @@ class MotionDetector:
             motion_detected = self._evaluate_motion(result)
             
             # Apply cooldown
+            if self.frame_count <= self.config.background_learning_frames:
+                motion_detected = False
+                self._cooldown_until = 0
             if motion_detected:
                 result.motion_detected = True
-                self.motion_cooldown = int(self.config.cooldown_seconds * 30)  # Assuming 30 FPS base
-            elif self.motion_cooldown > 0:
+                self._cooldown_until = time.monotonic() + self.config.cooldown_seconds
+            elif time.monotonic() < self._cooldown_until:
                 result.motion_detected = True
-                self.motion_cooldown -= 1
             else:
                 result.motion_detected = False
             
@@ -202,7 +208,7 @@ class MotionDetector:
         
         # Convert sensitivity to area threshold
         # Sensitivity 0-100 -> min_area multiplier 0.1x to 10x
-        sensitivity_multiplier = (100 - self.config.sensitivity) / 10.0
+        sensitivity_multiplier = 0.1 + self.config.sensitivity / 10.0
         effective_min_area = self.config.min_contour_area * sensitivity_multiplier
         
         # Motion detected if max contour exceeds threshold
@@ -216,6 +222,7 @@ class MotionDetector:
         )
         self.frame_count = 0
         self.motion_cooldown = 0
+        self._cooldown_until = 0
     
     def get_statistics(self) -> dict:
         """

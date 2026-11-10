@@ -1,7 +1,7 @@
 ; Compile with Inno Setup after running scripts/build_desktop.py.
 [Setup]
 AppName=Sentinel
-AppVersion=0.2.0
+AppVersion=0.3.0rc1
 DefaultDirName={localappdata}\Programs\Sentinel
 DefaultGroupName=Sentinel
 PrivilegesRequired=lowest

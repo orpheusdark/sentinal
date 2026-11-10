@@ -27,6 +27,9 @@ from motion import MotionDetector, MotionEventManager
 from recording import RecordingManager
 from storage import StorageManager
 from alerts import TelegramAlertManager
+from alerts.queue import QueuedAlerts
+from camera.pipeline import CameraPipeline
+import cv2
 from web import WebServer, StreamManager
 
 
@@ -56,6 +59,7 @@ class ApplicationContext:
         self.stream_manager = None
         self.alert_manager = None
         self.active_camera_db_id = None
+        self.pipelines = {}
         self._shutdown_event = threading.Event()
     
     def shutdown(self):
@@ -111,6 +115,7 @@ class Application:
             
             # Step 2: Initialize configuration
             self.context.config = initialize_config(self.config_file)
+            cv2.setNumThreads(self.context.config.camera.opencv_threads)
             self.logger.info(f"Configuration loaded: {self.context.config.app_name} v{self.context.config.version}")
 
             if self.no_auth:
@@ -148,9 +153,10 @@ class Application:
             
             # Step 8: Initialize storage manager
             self.context.storage_manager = StorageManager(self.context.config.storage)
-            self.context.storage_manager.active_recording_path = lambda: (
-                self.context.recording_manager.current_video_path
-                if self.context.recording_manager.is_recording else None)
+            self.context.storage_manager.active_recording_path = lambda: [
+                pipeline.recorder.current_video_path for pipeline in self.context.pipelines.values()
+                if pipeline.recorder.is_recording]
+            self.context.storage_manager.reconcile_archive()
             self.logger.info("Storage manager initialized")
 
             # Step 9: Initialize Telegram alerts
@@ -162,7 +168,8 @@ class Application:
                 parse_mode=telegram_config.parse_mode,
                 bot_name=telegram_config.bot_name,
             )
-            self.logger.info("Alert manager initialized")
+            self.context.alert_manager = QueuedAlerts(self.context.alert_manager)
+            self.logger.info("Alert queue initialized")
             
             # Step 10: Initialize stream manager
             stream = self.context.config.streaming
@@ -170,10 +177,14 @@ class Application:
                 quality={'low': 40, 'medium': 70, 'high': 90}[stream.quality], target_fps=stream.fps)
             self.logger.info("Stream manager initialized")
             
+            self._setup_pipelines()
+
             # Step 11: Initialize web server
             web_config = self.context.config.web
             self.context.web_server = WebServer(host=web_config.host, port=web_config.port, debug=self.context.config.debug)
             self.context.web_server.set_app_context(self.context)
+            if self.context.config.web.check_updates:
+                self.context.web_server.updates.check()
             self.logger.info("Web server initialized")
             
             # Step 12: Start web server in background thread
@@ -248,138 +259,55 @@ class Application:
         self.logger.info(f"Disk: {system_info['disk']['total_gb']:.1f} GB total")
         self.logger.info("=" * 80)
     
+    def _setup_pipelines(self, start=False):
+        manager=self.context.camera_manager
+        for driver_id, profile in getattr(manager,'profiles',{}).items():
+            db_id=manager.camera_db_ids.get(driver_id)
+            if db_id is None: continue
+            if db_id not in self.context.pipelines:
+                self.context.pipelines[db_id]=CameraPipeline(driver_id,db_id,profile,self.context.config,
+                                                            manager,self.context.alert_manager)
+            if start: self.context.pipelines[db_id].start()
+        if self.context.pipelines:
+            first=next(iter(self.context.pipelines.values()))
+            self.context.motion_detector=first.detector
+            self.context.motion_event_manager=first.events
+            self.context.recording_manager=first.recorder
+            self.context.stream_manager=first.stream
+
     def run(self) -> int:
-        """
-        Run the application.
-        
-        Returns:
-            Exit code (0 = success, non-zero = failure)
-        """
-        # Initialize
         if not self.initialize():
-            self.shutdown()
-            return 1
+            self.shutdown(); return 1
         if self.context._shutdown_event.is_set():
-            self.shutdown()
-            return 0
-        
-        self.context.running = True
-        self.logger.info("Application started")
-        
+            self.shutdown(); return 0
+        self.context.running=True
+        self._setup_pipelines(start=True)
+        health=time.monotonic(); disk=health; retention=0; updates=health
         try:
-            # Main application loop
-            last_health_check = time.monotonic()
-            last_disk_check = time.monotonic()
-            last_retention_check = 0
-            
-            while self.context.running:
-                try:
-                    # Periodic health check (every 30 seconds)
-                    now = time.monotonic()
-                    if now - last_health_check >= 30:
-                        if not self.context.camera_manager.cameras and self.context.config.camera.enabled:
-                            self.context.camera_manager.initialize()
-                        self.context.camera_manager.check_health()
-                        last_health_check = now
-                    
-                    # Periodic disk check (every 60 seconds)
-                    if now - last_disk_check >= 60 and self.context.config.recording.auto_cleanup:
-                        disk_health = self.context.storage_manager.check_disk_health()
-                        if disk_health['status'] == 'critical':
-                            self.logger.warning(f"Disk critical: {disk_health['used_percent']}% full, triggering cleanup")
-                            self.context.storage_manager.emergency_cleanup()
-                        elif disk_health['status'] == 'warning':
-                            self.logger.warning(f"Disk warning: {disk_health['used_percent']}% full, enforcing retention")
-                            self.context.storage_manager.enforce_retention_policy()
-                        last_disk_check = now
-                    if self.context.config.recording.auto_cleanup and now - last_retention_check >= self.context.config.storage.cleanup_check_interval:
-                        self.context.storage_manager.enforce_retention_policy()
-                        last_retention_check = now
-                    
-                    # Get frame from camera
-                    frame_data = self.context.camera_manager.get_frame()
-                    
-                    if frame_data is None:
-                        time.sleep(0.1)
-                        continue
-                    
-                    frame, timestamp, camera_id = frame_data
-                    database_camera_id = self.context.camera_manager.get_camera_database_id(camera_id)
-                    if database_camera_id is None:
-                        database_camera_id = self.context.active_camera_db_id
-                    if database_camera_id is None:
-                        self.logger.warning(f"Skipping frame because camera database ID could not be resolved: {camera_id}")
-                        time.sleep(1.0 / self.context.config.camera.fps)
-                        continue
-                    
-                    # Detect motion
-                    motion_result = self.context.motion_detector.process_frame(frame)
-                    
-                    # Handle motion events
-                    if motion_result.motion_detected:
-                        event = self.context.motion_event_manager.on_motion_detected(
-                            camera_id=database_camera_id,
-                            result=motion_result
-                        )
-                        
-                        # Trigger recording on motion
-                        self.context.recording_manager.on_motion_detected(
-                            camera_id=database_camera_id,
-                            motion_start_time=timestamp
-                        )
-                        
-                        if event:
-                            self.logger.info(
-                                f"Motion detected: contours={motion_result.contour_count}, "
-                                f"area={int(motion_result.max_contour_area)}"
-                            )
-                            if self.context.alert_manager and self.context.alert_manager.is_configured() and self.context.config.telegram.notify_motion:
-                                camera_name = self.context.camera_manager.get_camera(camera_id).name if self.context.camera_manager.get_camera(camera_id) else f"Camera {camera_id}"
-                                alert_result = self.context.alert_manager.send_motion_alert(
-                                    camera_name=camera_name,
-                                    camera_id=database_camera_id,
-                                    timestamp=timestamp,
-                                    contour_count=motion_result.contour_count,
-                                    max_contour_area=int(motion_result.max_contour_area),
-                                )
-                                if not alert_result.success:
-                                    self.logger.warning(f"Telegram motion alert failed: {alert_result.error_message}")
-                    else:
-                        # Check if motion event ended
-                        if self.context.motion_event_manager.current_event_id is not None:
-                            self.context.motion_event_manager.on_motion_ended()
-                            # Trigger end of recording
-                            self.context.recording_manager.on_motion_ended(timestamp)
-                    
-                    # Write frame to recording
-                    recording_result = self.context.recording_manager.write_frame(
-                        frame=frame,
-                        frame_timestamp=timestamp,
-                        camera_id=database_camera_id
-                    )
-                    
-                    # Update stream with current frame
-                    self.context.stream_manager.update_frame(frame)
-                    
-                    # Frame rate limiting (15 FPS default)
-                    time.sleep(1.0 / self.context.config.camera.fps)
-                    
-                except KeyboardInterrupt:
-                    self.logger.info("Keyboard interrupt received")
-                    break
-                except Exception as e:
-                    self.logger.error(f"Error in main loop: {e}", exc_info=True)
-                    time.sleep(1)
-            
+            while not self.context._shutdown_event.wait(1):
+                now=time.monotonic()
+                if now-health>=30:
+                    self.context.camera_manager.check_health()
+                    self._setup_pipelines(start=True)
+                    health=now
+                if self.context.config.web.check_updates and now-updates>=86400:
+                    self.context.web_server.updates.check(); updates=now
+                if self.context.config.recording.auto_cleanup:
+                    if now-disk>=60:
+                        state=self.context.storage_manager.check_disk_health()
+                        if state['status']=='critical': self.context.storage_manager.emergency_cleanup()
+                        disk=now
+                    if now-retention>=self.context.config.storage.cleanup_check_interval:
+                        self.context.storage_manager.enforce_retention_policy(); retention=now
             return 0
-            
-        except Exception as e:
-            self.logger.error(f"Fatal error: {e}", exc_info=True)
-            return 1
-        
+        except KeyboardInterrupt:
+            return 0
+        except Exception:
+            self.logger.exception('Application coordinator failed'); return 1
         finally:
+            self.context.running=False
             self.shutdown()
-    
+
     def shutdown(self):
         """Gracefully shutdown the application."""
         self.logger.info("Initiating application shutdown...")
@@ -390,6 +318,9 @@ class Application:
                 self.logger.info("Shutting down web server...")
                 self.context.web_server.stop()
             
+            for pipeline in self.context.pipelines.values():
+                pipeline.stop()
+
             # Shutdown recording
             if self.context.recording_manager:
                 if self.context.recording_manager.is_recording:
@@ -400,6 +331,9 @@ class Application:
                 if shutdown_result.success:
                     self.logger.info("Telegram shutdown alert sent")
             
+            if self.context.alert_manager:
+                self.context.alert_manager.close(timeout=2)
+
             # Shutdown camera
             if self.context.camera_manager:
                 self.context.camera_manager.shutdown()

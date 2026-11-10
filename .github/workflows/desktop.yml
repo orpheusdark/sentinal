@@ -1,6 +1,12 @@
 name: Build desktop apps
 on:
   workflow_dispatch:
+    inputs:
+      require_windows_signing:
+        description: Fail the Windows build unless signing credentials are configured
+        required: false
+        type: boolean
+        default: false
 permissions:
   contents: read
 jobs:
@@ -20,8 +26,26 @@ jobs:
       - run: python scripts/build_desktop.py
       - name: Check frozen application resources
         run: python scripts/check_desktop.py
+      - name: Sign Windows application when configured
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          WINDOWS_SIGNING_PFX_BASE64: ${{ secrets.WINDOWS_SIGNING_PFX_BASE64 }}
+          WINDOWS_SIGNING_PFX_PASSWORD: ${{ secrets.WINDOWS_SIGNING_PFX_PASSWORD }}
+          WINDOWS_SIGNING_TIMESTAMP_URL: ${{ secrets.WINDOWS_SIGNING_TIMESTAMP_URL }}
+          REQUIRE_SIGNING: ${{ inputs.require_windows_signing }}
+        run: ./scripts/sign_windows.ps1 -TargetFile dist/Sentinel/Sentinel.exe -RequireSigning:($env:REQUIRE_SIGNING -eq 'true')
       - if: runner.os == 'Windows'
         run: python scripts/build_windows_setup.py
+      - name: Sign Windows installer when configured
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          WINDOWS_SIGNING_PFX_BASE64: ${{ secrets.WINDOWS_SIGNING_PFX_BASE64 }}
+          WINDOWS_SIGNING_PFX_PASSWORD: ${{ secrets.WINDOWS_SIGNING_PFX_PASSWORD }}
+          WINDOWS_SIGNING_TIMESTAMP_URL: ${{ secrets.WINDOWS_SIGNING_TIMESTAMP_URL }}
+          REQUIRE_SIGNING: ${{ inputs.require_windows_signing }}
+        run: ./scripts/sign_windows.ps1 -TargetFile dist/Sentinel-Setup-Windows.exe -RequireSigning:($env:REQUIRE_SIGNING -eq 'true')
       - if: runner.os == 'Linux'
         run: tar -czf dist/Sentinel-Linux.tar.gz -C dist Sentinel
       - uses: actions/upload-artifact@v4

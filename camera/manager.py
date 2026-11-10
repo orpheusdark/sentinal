@@ -49,109 +49,66 @@ class CameraManager:
         self._running = False
     
     def initialize(self) -> bool:
-        """
-        Initialize and connect to cameras.
-        
-        Returns:
-            True if at least one camera connected, False otherwise
-        """
+        from config.settings import get_config
+        from config.profiles import profiles_from_config
+        from types import SimpleNamespace
+        settings=get_config()
+        profiles=profiles_from_config(SimpleNamespace(camera=self.config,motion=settings.motion,recording=settings.recording))
+        self.profiles={}
+        if not self.config.enabled:
+            return False
+        for profile in profiles:
+            if not profile.enabled:
+                continue
+            driver=BuiltinCameraDriver(profile.index,profile.name,profile.fps,profile.resolution)
+            connected=driver.connect()
+            camera_id=driver.camera_id
+            self.cameras[camera_id]=driver
+            self.profiles[camera_id]=profile
+            db_id=self._save_camera_to_db(driver)
+            if db_id is not None:
+                self.camera_db_ids[camera_id]=db_id
+            self.camera_health[camera_id]={'connected':connected,'last_frame_time':None,'frame_count':0,'error_count':0}
+            self.reconnect_intervals[camera_id]=self.config.reconnect_interval
+        self._running=True
+        return any(driver.is_connected for driver in self.cameras.values())
+
+    def discover(self, max_devices=8):
+        """Bounded local-device discovery; never opens a second handle to an active feed."""
+        found=[]
+        for index in range(min(max_devices,16)):
+            current=self.cameras.get(f'builtin_{index}')
+            if current and current.is_connected:
+                found.append({'index':index,'name':current.name,'connected':True,
+                              'resolution':current.get_resolution(),'fps':current.get_fps()})
+                continue
+            candidate=BuiltinCameraDriver(index,f'Camera {index+1}')
+            try:
+                if candidate.connect():
+                    found.append({'index':index,'name':candidate.name,'connected':True,
+                                  'resolution':candidate.get_resolution(),'fps':candidate.get_fps()})
+            finally:
+                candidate.disconnect()
+        return found
+
+    def _save_camera_to_db(self, driver):
         try:
-            logger.info("Initializing camera manager...")
-            
-            if not self.config.enabled:
-                logger.info("Camera system disabled in configuration")
-                return False
-            
-            # Auto-detect built-in camera
-            if self._detect_and_connect_builtin():
-                self._running = True
-                logger.info(f"Camera manager initialized with {len(self.cameras)} camera(s)")
-                return True
-            
-            logger.warning("No cameras available")
-            return False
-            
-        except Exception as e:
-            logger.error(f"Error initializing camera manager: {e}")
-            return False
-    
-    def _detect_and_connect_builtin(self) -> bool:
-        """
-        Detect and connect to built-in camera.
-        
-        Returns:
-            True if successful, False otherwise
-        """
-        try:
-            logger.info("Detecting built-in camera...")
-            
-            # Try to open built-in camera
-            driver = BuiltinCameraDriver(
-                camera_index=0,
-                name="builtin",
-                target_fps=self.config.fps,
-                resolution=self.config.resolution
-            )
-            
-            if driver.connect():
-                camera_id = driver.camera_id
-                camera_db_id = self._save_camera_to_db(driver)
-                self.cameras[camera_id] = driver
-                if camera_db_id is not None:
-                    self.camera_db_ids[camera_id] = camera_db_id
-                self.camera_health[camera_id] = {
-                    "connected": True,
-                    "last_frame_time": datetime.utcnow(),
-                    "frame_count": 0,
-                    "error_count": 0,
-                }
-                self.reconnect_intervals[camera_id] = self.config.reconnect_interval
-                
-                logger.info(f"Built-in camera detected and connected: {camera_id}")
-                return True
-            
-            logger.warning("Failed to connect to built-in camera")
-            return False
-            
-        except Exception as e:
-            logger.error(f"Error detecting built-in camera: {e}")
-            return False
-    
-    def _save_camera_to_db(self, driver: CameraDriver) -> Optional[int]:
-        """Save camera info to database and return the database ID."""
-        try:
-            session = get_db_session()
-            
-            # Check if already exists
-            existing = session.query(Camera).filter_by(
-                name=driver.name,
-                camera_type="builtin"
-            ).first()
-            
-            if existing:
-                camera_id = existing.id
-                session.close()
-                return camera_id
-            
-            # Create new camera record
-            camera = Camera(
-                name=driver.name,
-                camera_type="builtin",
-                enabled=True,
-                connection_status="connected",
-            )
-            
-            session.add(camera)
-            session.commit()
-            session.refresh(camera)
-            camera_id = camera.id
-            session.close()
-            
-            logger.info(f"Camera saved to database: {driver.name}")
-            return camera_id
-            
-        except Exception as e:
-            logger.error(f"Error saving camera to database: {e}")
+            with get_db_session() as session:
+                address=f'device:{driver.camera_index}'
+                camera=session.query(Camera).filter(Camera.url==address).first()
+                if camera is None:
+                    camera=session.query(Camera).filter(Camera.name==driver.name).first()
+                if camera is None:
+                    camera=Camera(name=driver.name,camera_type='builtin')
+                    session.add(camera)
+                camera.name=driver.name
+                camera.url=address
+                camera.enabled=True
+                camera.connection_status='connected' if driver.is_connected else 'disconnected'
+                session.commit()
+                return camera.id
+        except Exception:
+            logger.exception('Unable to save camera metadata')
             return None
 
     def get_camera_database_id(self, camera_id: Optional[str] = None) -> Optional[int]:
@@ -210,44 +167,23 @@ class CameraManager:
             
             return None
     
-    def get_frame(self, camera_id: Optional[str] = None) -> Optional[tuple]:
-        """
-        Get a frame from camera.
-        
-        Args:
-            camera_id: Camera ID (if None, uses first connected camera)
-        
-        Returns:
-            Tuple of (frame, timestamp, camera_id) or None if failed
-        """
+    def get_frame(self, camera_id=None):
+        # Capture outside the manager lock so a slow feed cannot serialize other cameras.
+        driver=self.get_camera(camera_id)
+        if driver is None or not driver.is_connected:
+            return None
+        frame=driver.get_frame()
+        timestamp=datetime.utcnow()
         with self._lock:
-            driver = self.get_camera(camera_id)
-            
-            if driver is None:
+            health=self.camera_health[driver.camera_id]
+            if frame is None:
+                health['error_count']+=1
                 return None
-            
-            try:
-                frame = driver.get_frame()
-                
-                if frame is None:
-                    self.camera_health[driver.camera_id]["error_count"] += 1
-                    return None
-                
-                # Update health
-                health = self.camera_health[driver.camera_id]
-                health["last_frame_time"] = datetime.utcnow()
-                health["frame_count"] += 1
-                
-                # Cache frame
-                self.frame_cache[driver.camera_id] = (frame, datetime.utcnow(), driver.camera_id)
-                
-                return (frame, datetime.utcnow(), driver.camera_id)
-                
-            except Exception as e:
-                logger.error(f"Error getting frame from {driver.name}: {e}")
-                self.camera_health[driver.camera_id]["error_count"] += 1
-                return None
-    
+            health['last_frame_time']=timestamp
+            health['frame_count']+=1
+            self.frame_cache[driver.camera_id]=(frame,timestamp,driver.camera_id)
+        return frame,timestamp,driver.camera_id
+
     def check_health(self):
         """
         Check camera health and attempt reconnection if needed.
@@ -259,7 +195,8 @@ class CameraManager:
                 try:
                     if not driver.is_alive():
                         logger.warning(f"Camera {driver.name} is not responding")
-                        self._attempt_reconnect(camera_id, driver)
+                        if self.config.auto_reconnect:
+                            self._attempt_reconnect(camera_id, driver)
                     else:
                         # Update health
                         self.camera_health[camera_id]["connected"] = True

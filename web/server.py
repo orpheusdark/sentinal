@@ -79,7 +79,7 @@ class WebServer:
         # Enable CORS
         self.app.config.update(SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE='Lax',
                                SESSION_COOKIE_SECURE=self.config.web.use_https,
-                               MAX_CONTENT_LENGTH=16 * 1024)
+                               MAX_CONTENT_LENGTH=128 * 1024)
         self.app.teardown_request(self._close_request_session)
         self.app.after_request(self._security_headers)
         
@@ -90,6 +90,9 @@ class WebServer:
         self.app.before_request(self._enforce_access_control)
         self.app.context_processor(self._inject_template_context)
         self._register_routes()
+        self.scan_lock = threading.Lock()
+        from web.features import register_features
+        register_features(self)
         
         logger.info(f"Web server initialized (http://{host}:{port})")
     
@@ -108,7 +111,7 @@ class WebServer:
         response.headers['X-Frame-Options'] = 'DENY'
         response.headers['Referrer-Policy'] = 'same-origin'
         response.headers['Cache-Control'] = 'no-store'
-        response.headers['Content-Security-Policy'] = "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; frame-ancestors 'none'; form-action 'self'; base-uri 'self'"
+        response.headers['Content-Security-Policy'] = "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; frame-ancestors 'none'; form-action 'self'; base-uri 'self'"
         return response
 
     def set_app_context(self, app_context):
@@ -121,6 +124,8 @@ class WebServer:
             'authenticated': self._is_authenticated(),
             'username': session.get('username'),
             'auth_enabled': self.auth_enabled,
+            'version': self.config.version,
+            'app_name': self.config.app_name,
         }
 
     def _is_authenticated(self) -> bool:
@@ -334,6 +339,8 @@ class WebServer:
                 'success': True,
                 'data': {
                     'auth_enabled': self.auth_enabled,
+            'version': self.config.version,
+            'app_name': self.config.app_name,
                     'authenticated': self._is_authenticated(),
                     'username': session.get('username'),
                 }
@@ -410,7 +417,8 @@ class WebServer:
                         'error': 'Recording manager not available'
                     }), 500
                 
-                is_recording = self.app_context.recording_manager.is_recording
+                pipelines = getattr(self.app_context,'pipelines',{})
+                is_recording = any(p.recorder.is_recording for p in pipelines.values()) if pipelines else self.app_context.recording_manager.is_recording
                 current_video = self.app_context.recording_manager.current_video_path
                 
                 return jsonify({
@@ -471,6 +479,8 @@ class WebServer:
                         'duration_seconds': rec.duration_seconds,
                         'file_size_bytes': rec.file_size_bytes,
                         'quality': None,
+                        'has_thumbnail': bool(rec.has_thumbnail),
+                        'motion_event_id': rec.motion_event_id,
                     })
                 
                 return jsonify({
@@ -560,7 +570,10 @@ class WebServer:
                     status = driver.get_status()
                     cameras.append({
                         'id': camera_id,
-                        'connected': driver.is_alive(),
+                        'database_id': self.app_context.camera_manager.camera_db_ids.get(camera_id),
+                        'index': driver.camera_index,
+                        'name': driver.name,
+                        'connected': driver.is_connected,
                         'status': status
                     })
                 
@@ -589,14 +602,14 @@ class WebServer:
                 from database.models import Camera, Recording, MotionEvent
                 from sqlalchemy import func
 
-                recording_counts = dict(session.query(Recording.camera_id, func.count(Recording.id)).group_by(Recording.camera_id).all())
+                recording_counts = dict(session.query(Recording.camera_id, func.count(Recording.id)).filter(Recording.deleted_at.is_(None)).group_by(Recording.camera_id).all())
                 motion_counts = dict(session.query(MotionEvent.camera_id, func.count(MotionEvent.id)).group_by(MotionEvent.camera_id).all())
 
                 camera_count = session.query(Camera).count()
-                total_recordings = session.query(Recording).count()
+                total_recordings = session.query(Recording).filter(Recording.deleted_at.is_(None)).count()
                 total_motion_events = session.query(MotionEvent).count()
                 recordings_last_week = session.query(Recording).filter(
-                    Recording.start_time >= datetime.utcnow() - timedelta(days=7)
+                    Recording.deleted_at.is_(None), Recording.start_time >= datetime.utcnow() - timedelta(days=7)
                 ).count()
                 motion_events_last_24h = session.query(MotionEvent).filter(
                     MotionEvent.start_time >= datetime.utcnow() - timedelta(hours=24)
@@ -615,7 +628,7 @@ class WebServer:
                         'motion_event_count': motion_count,
                     })
 
-                recording_size_bytes = session.query(func.coalesce(func.sum(Recording.file_size_bytes), 0)).scalar()
+                recording_size_bytes = session.query(func.coalesce(func.sum(Recording.file_size_bytes), 0)).filter(Recording.deleted_at.is_(None)).scalar()
                 session.close()
 
                 return jsonify({
@@ -715,7 +728,16 @@ class WebServer:
                     return jsonify({'success': False, 'error': 'Stream manager not available'}), 500
                 
                 # Get frame as base64 JPEG
-                frame_b64 = self.app_context.stream_manager.get_frame_as_jpeg()
+                stream = self.app_context.stream_manager
+                camera_id = request.args.get('camera_id', type=int)
+                if camera_id is not None:
+                    pipeline = getattr(self.app_context, 'pipelines', {}).get(camera_id)
+                    if pipeline is None:
+                        return jsonify(success=False,error='Camera feed unavailable'),404
+                    stream = pipeline.stream
+                if stream.current_timestamp and (datetime.utcnow()-stream.current_timestamp).total_seconds()>max(3,3/stream.target_fps):
+                    return jsonify(success=False,error='Camera signal is stale'),404
+                frame_b64 = stream.get_frame_as_jpeg()
                 
                 if not frame_b64:
                     return jsonify({'success': False, 'error': 'No frame available'}), 404
@@ -724,9 +746,9 @@ class WebServer:
                     'success': True,
                     'data': {
                         'frame': frame_b64,
-                        'timestamp': datetime.utcnow().isoformat(),
-                        'quality': self.app_context.stream_manager.quality,
-                        'fps': self.app_context.stream_manager.target_fps,
+                        'timestamp': stream.current_timestamp.isoformat(),
+                        'quality': stream.quality,
+                        'fps': stream.target_fps,
                     }
                 })
             except Exception as e:
@@ -789,6 +811,7 @@ class WebServer:
         return worker
 
     def stop(self):
+        self.playback.close()
         if self.http_server is not None:
             self.http_server.shutdown()
             self.http_server.server_close()

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sentinal-surveillance"
-version = "0.2.0"
+version = "0.3.0rc1"
 description = "Local camera surveillance and monitoring dashboard"
 readme = "readme.md"
 license = "MIT"
@@ -22,7 +22,7 @@ Releases = "https://github.com/orpheusdark/sentinal/releases"
 dependencies = {file = ["requirements.txt"]}
 
 [tool.setuptools]
-py-modules = ["app", "monitor", "watchdog", "desktop"]
+py-modules = ["app", "monitor", "watchdog", "desktop", "sentinel_version"]
 
 [tool.setuptools.packages.find]
 include = ["alerts*", "camera*", "config*", "database*", "motion*", "recording*", "storage*", "utils*", "web*"]

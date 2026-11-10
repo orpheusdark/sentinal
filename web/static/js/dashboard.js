@@ -4,6 +4,8 @@ class Dashboard {
         this.canvas = document.getElementById('liveCanvas');
         this.ctx = this.canvas.getContext('2d');
         this.paused = false;
+        this.cameraId = '';
+        document.getElementById('feedSelect').addEventListener('change', event => { this.cameraId = event.target.value; this.previewMessage('Connecting to selected camera…'); });
         this.fps = 15;
         this.frames = 0;
         this.frameTime = performance.now();
@@ -48,7 +50,21 @@ class Dashboard {
                     this.percent('diskUsage', 'diskBar', d.disk_percent);
                     this.percent('diskText', 'diskProgress', d.disk_percent);
                 }),
-                this.api('/api/cameras').then(d => this.text('cameraCount', d.cameras.filter(c => c.connected).length)),
+                this.api('/api/cameras').then(d => {
+                    this.text('cameraCount', d.cameras.filter(c => c.connected).length);
+                    const select = document.getElementById('feedSelect');
+                    const old = select.value; select.replaceChildren();
+                    const fallback = document.createElement('option'); fallback.value = ''; fallback.textContent = 'Default feed'; select.append(fallback);
+                    for (const camera of d.cameras) {
+                        if (camera.database_id == null) continue;
+                        const option = document.createElement('option'); option.value = camera.database_id; option.textContent = camera.name || camera.id; select.append(option);
+                    }
+                    select.value = old;
+                }),
+                this.api('/api/updates').then(d => {
+                    const notice = document.getElementById('updateNotice'); notice.hidden = !d.available;
+                    if (d.available) notice.textContent = `New release available: ${d.latest_version}. Open Diagnostics to review.`;
+                }),
                 this.api('/api/analytics').then(d => {
                     this.text('motionCount', d.totals.motion_events_last_24h);
                     this.text('motionEventsCount', d.totals.motion_events_last_24h);
@@ -96,7 +112,7 @@ class Dashboard {
         let delay = 1000 / this.fps;
         if (!this.paused && !document.hidden) {
             try {
-                const d = await this.api('/api/stream/frame');
+                const d = await this.api('/api/stream/frame' + (this.cameraId ? '?camera_id=' + encodeURIComponent(this.cameraId) : ''));
                 const image = new Image();
                 image.src = 'data:image/jpeg;base64,' + d.frame;
                 await image.decode();

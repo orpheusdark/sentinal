@@ -5,6 +5,7 @@ Responsibility: Orchestrate video recording triggered by motion events.
 """
 
 import os
+import cv2
 from datetime import datetime, timedelta
 from typing import Optional, Tuple
 import numpy as np
@@ -46,6 +47,10 @@ class RecordingManager:
         self.recorder: Optional[MP4RecorderDriver] = None
         self.is_recording = False
         self.current_video_path: Optional[str] = None
+        self.thumbnail_frame = None
+        self.motion_event_id = None
+        self.capture_fps = None
+        self.capture_resolution = None
         
         # Motion event tracking
         self.motion_active = False
@@ -141,7 +146,15 @@ class RecordingManager:
                 self._start_recording(camera_id)
             
             # Write frame if recording
+            if self.is_recording and (frame_timestamp-self.recording_start_time).total_seconds() >= self.config.max_duration_seconds:
+                tail = self.post_motion_buffer_end
+                self._stop_recording()
+                self._start_recording(camera_id)
+                self.post_motion_buffer_end = tail
             if self.is_recording and self.recorder:
+                if self.thumbnail_frame is None:
+                    height, width = frame.shape[:2]
+                    self.thumbnail_frame = cv2.resize(frame, (320, max(1,round(height*320/width))))
                 result = self.recorder.write_frame(frame)
                 
                 return result
@@ -165,11 +178,12 @@ class RecordingManager:
             
             # Get camera resolution and FPS
             config = get_config()
-            fps = config.camera.fps if hasattr(config.camera, 'fps') else 15
-            resolution = self._get_camera_resolution(config)
+            fps = self.capture_fps or config.camera.fps
+            resolution = self.capture_resolution or self._get_camera_resolution(config)
             
             # Start recording
             if self.recorder.start_recording(video_path, fps, resolution):
+                self.thumbnail_frame = None
                 self.is_recording = True
                 self.current_video_path = video_path
                 self.current_camera_id = camera_id
@@ -261,9 +275,17 @@ class RecordingManager:
         try:
             path = Path(self.current_video_path).resolve()
             end = datetime.utcnow()
+            thumbnail_path = None
+            if self.thumbnail_frame is not None:
+                thumb = path.with_suffix('.jpg')
+                height, width = self.thumbnail_frame.shape[:2]
+                scaled = cv2.resize(self.thumbnail_frame, (320, max(1, round(height * 320 / width))))
+                if cv2.imwrite(str(thumb), scaled):
+                    thumbnail_path = str(thumb)
             with get_database().get_session() as session:
                 session.add(Recording(
-                    camera_id=self.current_camera_id, filename=path.name,
+                    camera_id=self.current_camera_id, motion_event_id=self.motion_event_id, filename=path.name,
+                    has_thumbnail=bool(thumbnail_path), thumbnail_path=thumbnail_path,
                     filepath=str(path), start_time=self.recording_start_time,
                     end_time=end,
                     duration_seconds=self.recorder.frames_written / self.recorder.fps,

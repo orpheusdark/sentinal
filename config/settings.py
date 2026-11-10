@@ -12,6 +12,7 @@ from typing import Any, Dict, Optional
 from dataclasses import dataclass, asdict, field, fields
 import logging
 import secrets
+from sentinel_version import __version__
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +26,8 @@ class CameraConfig:
     resolution: str = "720p"
     auto_reconnect: bool = True
     reconnect_interval: int = 5  # seconds
+    sources: list = field(default_factory=list)
+    opencv_threads: int = 1
 
 
 @dataclass
@@ -37,6 +40,12 @@ class MotionConfig:
     morph_kernel_size: int = 5
     cooldown_seconds: int = 2
     background_learning_frames: int = 30
+    zones: list = field(default_factory=list)
+    schedule: list = field(default_factory=list)
+    object_detection_enabled: bool = False
+    object_model_path: Optional[str] = None
+    object_confidence: float = 0.5
+    object_min_interval: float = 1.0
 
 
 @dataclass
@@ -49,6 +58,7 @@ class RecordingConfig:
     codec: str = "mp4v"
     quality: str = "high"  # low, medium, high
     auto_cleanup: bool = True
+    max_duration_seconds: int = 300
 
 
 @dataclass
@@ -138,6 +148,7 @@ class WebConfig:
     use_https: bool = False
     ssl_cert_path: Optional[str] = None
     ssl_key_path: Optional[str] = None
+    check_updates: bool = False
 
 
 @dataclass
@@ -145,7 +156,7 @@ class SentinelConfig:
     """Main application configuration."""
     
     app_name: str = "Project Sentinel"
-    version: str = "0.2.0"
+    version: str = __version__
     debug: bool = False
     auto_start: bool = True
     
@@ -167,6 +178,15 @@ class SentinelConfig:
     
     def _validate(self):
         """Validate configuration values."""
+        from config.profiles import validate_profiles, validate_policy
+        self.camera.sources = validate_profiles(self.camera.sources)
+        validate_policy(self.motion.zones,self.motion.schedule)
+        if type(self.camera.opencv_threads) is not int or not 1 <= self.camera.opencv_threads <= 16:
+            raise ValueError('OpenCV threads must be between 1 and 16')
+        if not isinstance(self.motion.object_confidence,(int,float)) or not 0.1 <= self.motion.object_confidence <= 1:
+            raise ValueError('Object confidence must be between 0.1 and 1')
+        if not isinstance(self.motion.object_min_interval,(int,float)) or not 0.5 <= self.motion.object_min_interval <= 60:
+            raise ValueError('Object detection interval must be between 0.5 and 60 seconds')
         for section_name in ('camera', 'motion', 'recording', 'storage', 'database',
                              'security', 'telegram', 'streaming', 'web', 'logging'):
             section = getattr(self, section_name)
@@ -188,6 +208,8 @@ class SentinelConfig:
             raise ValueError("Recording enabled must be a boolean")
         if not 0 <= self.recording.post_motion_seconds <= 300:
             raise ValueError("Post motion seconds must be between 0 and 300")
+        if not 1 <= self.recording.max_duration_seconds <= 3600:
+            raise ValueError('Recording segments must be between 1 and 3600 seconds')
         if self.motion.min_contour_area < 1 or self.motion.morph_kernel_size < 1:
             raise ValueError("Motion area and kernel size must be positive")
         if not 0 < self.storage.warning_disk_percent < self.storage.critical_disk_percent <= 100:
@@ -282,7 +304,7 @@ class ConfigManager:
         """Get default configuration."""
         return {
             "app_name": "Project Sentinel",
-            "version": "0.2.0",
+            "version": __version__,
             "debug": False,
             "auto_start": True,
             "camera": asdict(CameraConfig()),
@@ -371,7 +393,7 @@ class ConfigManager:
         """Convert dictionary to SentinelConfig object."""
         return SentinelConfig(
             app_name=config_dict.get("app_name", "Project Sentinel"),
-            version=config_dict.get("version", "0.2.0"),
+            version=__version__,
             debug=config_dict.get("debug", False),
             auto_start=config_dict.get("auto_start", True),
             camera=CameraConfig(**config_dict.get("camera", {})),
@@ -405,10 +427,11 @@ class ConfigManager:
     def save_public_patch(self, patch):
         """Validate and atomically persist editable settings; apply on restart."""
         allowed = {
-            'camera': {'fps', 'resolution'},
-            'motion': {'sensitivity', 'min_contour_area'},
+            'camera': {'enabled', 'fps', 'resolution', 'sources', 'opencv_threads'},
+            'motion': {'sensitivity', 'min_contour_area', 'zones', 'schedule', 'object_detection_enabled'},
             'recording': {'enabled', 'quality', 'post_motion_seconds'},
             'storage': {'retention_days', 'critical_disk_percent', 'target_free_percent'},
+            'web': {'check_updates'},
         }
         if not isinstance(patch, dict) or not patch:
             raise ValueError('Settings must be a non-empty object')

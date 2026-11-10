@@ -48,8 +48,9 @@ class StorageManager:
     def _can_delete(self, path):
         resolved = Path(path).resolve()
         active = self.active_recording_path()
+        active_paths = active if isinstance(active, (list,tuple,set)) else [active]
         return (not Path(path).is_symlink() and resolved.is_relative_to(self.recordings_path)
-                and (not active or resolved != Path(active).resolve()))
+                and all(not item or resolved != Path(item).resolve() for item in active_paths))
 
     def _initialize_thresholds(self):
         
@@ -125,7 +126,7 @@ class StorageManager:
                 # Walk through recording directory structure (YYYY/MM/DD/camera_id/)
                 for root, dirs, files in os.walk(recordings_path):
                     for file in files:
-                        if not file.endswith('.mp4') or Path(root, file).is_symlink():
+                        if (not file.endswith('.mp4') or file.endswith('.web.mp4')) or Path(root, file).is_symlink():
                             continue
                         
                         file_path = os.path.join(root, file)
@@ -139,7 +140,7 @@ class StorageManager:
                                     continue
                                 # Delete old file
                                 file_size = os.path.getsize(file_path)
-                                os.remove(file_path)
+                                self._remove_video(file_path)
                                 deleted_count += 1
                                 freed_bytes += file_size
                                 logger.debug(f"Deleted old recording: {file_path}")
@@ -149,6 +150,7 @@ class StorageManager:
                 
                 # Clean up empty directories
                 self._cleanup_empty_dirs(recordings_path)
+                self.reconcile_archive()
                 
                 logger.info(
                     f"Retention policy cleanup complete: "
@@ -220,7 +222,7 @@ class StorageManager:
                     try:
                         if not self._can_delete(file_path):
                             continue
-                        os.remove(file_path)
+                        self._remove_video(file_path)
                         deleted_count += 1
                         freed_bytes += file_size
                         logger.debug(f"Emergency deleted: {file_path}")
@@ -235,6 +237,7 @@ class StorageManager:
                 
                 # Clean up empty directories
                 self._cleanup_empty_dirs(recordings_path)
+                self.reconcile_archive()
                 
                 # Get final disk status
                 disk_info = SystemInfo.get_disk_info(str(self.recordings_path))
@@ -275,7 +278,7 @@ class StorageManager:
         try:
             for root, dirs, files in os.walk(recordings_path):
                 for file in files:
-                    if file.endswith('.mp4') and not Path(root, file).is_symlink():
+                    if file.endswith('.mp4') and not file.endswith('.web.mp4') and not Path(root, file).is_symlink():
                         file_path = os.path.join(root, file)
                         try:
                             file_size = os.path.getsize(file_path)
@@ -315,6 +318,28 @@ class StorageManager:
         except Exception as e:
             logger.error(f"Error cleaning up empty directories: {e}")
     
+    def _remove_video(self, file_path):
+        path=Path(file_path).resolve()
+        if not self._can_delete(path):
+            raise ValueError('Recording is protected')
+        path.unlink()
+        for companion in (path.with_suffix('.jpg'), path.with_name(path.stem+'.web.mp4')):
+            if companion.is_relative_to(self.recordings_path) and not companion.is_symlink():
+                companion.unlink(missing_ok=True)
+
+    def reconcile_archive(self):
+        """Tombstone missing videos so archive and analytics match the filesystem."""
+        from database.models import get_database, Recording
+        updated=0
+        with get_database().get_session() as session:
+            query=session.query(Recording).filter(Recording.deleted_at.is_(None)).yield_per(100)
+            for row in query:
+                path=Path(row.filepath).resolve()
+                if path.is_relative_to(self.recordings_path) and not path.is_file():
+                    row.deleted_at=datetime.utcnow(); updated+=1
+            session.commit()
+        return updated
+
     def get_storage_info(self) -> dict:
         """
         Get comprehensive storage information.
@@ -334,7 +359,7 @@ class StorageManager:
                 
                 for root, dirs, files in os.walk(recordings_path):
                     for file in files:
-                        if file.endswith('.mp4') and not Path(root, file).is_symlink():
+                        if file.endswith('.mp4') and not file.endswith('.web.mp4') and not Path(root, file).is_symlink():
                             file_path = os.path.join(root, file)
                             try:
                                 file_size = os.path.getsize(file_path)

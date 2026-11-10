@@ -5,30 +5,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ app_name }} v{{ version }} - Surveillance Dashboard</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/features.css') }}">
 </head>
 <body>
     <div class="container">
         <!-- Header -->
         <a class="skip-link" href="#main">Skip to content</a>
-        <header class="header">
-          <a class="brand" href="/" aria-label="Sentinel dashboard"><span class="brand-icon">S</span><span>SENTINEL<small>LOCAL SURVEILLANCE NETWORK</small></span></a>
-          <nav class="nav" aria-label="Main navigation">
-          {% for href, label in [('/', 'Overview'), ('/recordings', 'Recordings'), ('/settings', 'Settings')] %}
-          <a href="{{ href }}" class="nav-link{% if request.path == href %} active{% endif %}" {% if request.path == href %}aria-current="page"{% endif %}>{{ label }}</a>
-          {% endfor %}
-          {% if auth_enabled %}<a href="/logout" class="nav-link">Sign out</a>{% endif %}
-          </nav>
-          <div class="network-tag">PRIVATE / LOCAL</div>
-        </header>
+        {% include '_header.html' %}
 
         <!-- Main Content -->
         <main id="main" class="main-content">
-          <div class="page-heading"><div><p class="eyebrow">SENTINEL / CONTROL CENTER</p><h1>Command overview</h1><p>Your environment. In focus.</p></div><span class="node-label">NODE / 01</span></div>
+          <div class="page-heading"><div><p class="eyebrow">SENTINEL / CONTROL CENTER</p><h1>Command overview</h1><p>Your environment. In focus. Configure independent feeds in Cameras.</p></div><span class="node-label">NODE / 01</span></div>
             <!-- Live Stream Section -->
-            <div id="connectionNotice" class="connection-notice" role="status" aria-live="polite">Connecting to telemetry…</div><section class="stream-section">
+            <a id="updateNotice" class="connection-notice" href="/diagnostics" hidden></a><div id="connectionNotice" class="connection-notice" role="status" aria-live="polite">Connecting to telemetry…</div><section class="stream-section">
                 <div class="section-header">
                     <h2>Live Stream</h2>
-                    <div class="stream-controls">
+                    <div class="stream-controls"><label class="compact-control">Camera <select id="feedSelect" aria-label="Preview camera"><option value="">Default feed</option></select></label>
                         <label class="compact-control">Preview size <select id="qualitySelect"><option value="640">Compact</option><option value="1280" selected>Full</option></select></label>
                         <label class="compact-control">Refresh <select id="fpsSelect"><option value="5">5 FPS</option><option value="10">10 FPS</option><option value="15" selected>15 FPS</option></select></label><button id="pauseBtn" class="btn btn-secondary" aria-pressed="false">Pause preview</button>
                     </div>

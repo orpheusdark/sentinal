@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+{% block title %}Diagnostics{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">SYSTEM / HEALTH AND UPDATES</p><h1>Diagnostics</h1><p>Understand performance and spot interrupted feeds.</p></div><button id="refreshDiagnosticsBtn" class="btn">Refresh</button></div>
+<div id="diagnosticsMessage" role="status" aria-live="polite" class="message"></div>
+<section class="metrics-section"><div class="section-header"><h2>Process and storage</h2><button id="downloadDiagnosticsBtn" class="btn">Download diagnostics</button></div><div id="diagnosticMetrics" class="metrics-grid"></div><p class="help-text">Diagnostics exclude credentials, hostnames, IP addresses and filesystem paths. Observed FPS includes startup and disconnected periods.</p></section>
+<section class="settings-section"><div class="section-header"><h2>Camera pipelines</h2></div><div id="pipelineDiagnostics" class="events-list"></div></section>
+<section class="settings-section"><div class="section-header"><h2>Background alerts</h2></div><div id="alertDiagnostics" class="metrics-grid"></div><p class="help-text">Delivery retries run outside capture. A full queue drops new alerts instead of blocking video.</p></section>
+<section class="settings-section"><div class="section-header"><h2>Application updates</h2><button id="checkUpdatesBtn" class="btn btn-primary">Check GitHub for updates</button></div><p id="updateMessage" role="status">No update check requested. Checking contacts GitHub and never installs software automatically.</p><a id="releaseLink" href="https://github.com/orpheusdark/sentinal/releases" class="btn" target="_blank" rel="noopener noreferrer">View releases</a><label class="check-label"><input id="automaticUpdates" type="checkbox">Check for updates on startup and once per day</label><button id="saveUpdatePreferenceBtn" class="btn">Save update preference</button><p id="updatePreferenceMessage" role="status" class="help-text">Automatic checks are opt-in and require a restart after changing the preference.</p><p class="help-text">Windows installer signing is prepared for a future certificate. Current preview packages are not distribution-signed.</p></section>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/diagnostics.js') }}"></script>{% endblock %}

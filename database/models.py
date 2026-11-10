@@ -203,7 +203,7 @@ class DatabaseManager:
             connect_args={"check_same_thread": False, "timeout": 30},
         )
         
-        self.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)
+        self.SessionLocal = sessionmaker(autocommit=False, autoflush=False, expire_on_commit=False, bind=self.engine)
         
         logger.info(f"Database initialized at {self.db_path}")
     

@@ -11,5 +11,6 @@ payload = shutil.make_archive(str(payload_dir / 'sentinel-payload'), 'zip', root
 subprocess.run([
     sys.executable, '-m', 'PyInstaller', '--noconfirm', '--clean', '--onefile',
     '--windowed', '--name', 'Sentinel-Setup-Windows',
+    '--version-file','scripts/windows-version.txt',
     '--add-data', f'{payload};.', 'scripts/windows_setup.py',
 ], cwd=root, check=True)

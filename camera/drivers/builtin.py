@@ -12,6 +12,17 @@ import numpy as np
 from typing import Optional, Tuple
 import time
 import logging
+import sys
+import threading
+from functools import wraps
+
+def capture_locked(method):
+    @wraps(method)
+    def call(self,*args,**kwargs):
+        with self._capture_lock:
+            return method(self,*args,**kwargs)
+    return call
+
 
 from ..base_driver import CameraDriver
 
@@ -53,10 +64,12 @@ class BuiltinCameraDriver(CameraDriver):
         self.target_fps = target_fps
         self.target_resolution = self.RESOLUTIONS.get(resolution, (1280, 720))
         
+        self._capture_lock = threading.RLock()
         self.cap = None
         self.last_frame_time = 0
         self.frame_interval = 1.0 / target_fps
     
+    @capture_locked
     def connect(self) -> bool:
         """
         Connect to camera using OpenCV.
@@ -65,9 +78,10 @@ class BuiltinCameraDriver(CameraDriver):
             True if successful, False otherwise
         """
         try:
-            self.cap = cv2.VideoCapture(self.camera_index, cv2.CAP_DSHOW)
+            self.cap = cv2.VideoCapture(self.camera_index, cv2.CAP_DSHOW if sys.platform=='win32' else cv2.CAP_ANY)
             
             if not self.cap.isOpened():
+                self.cap.release()
                 logger.error(f"Failed to open camera at index {self.camera_index}")
                 return False
             
@@ -96,6 +110,7 @@ class BuiltinCameraDriver(CameraDriver):
             logger.error(f"Error connecting to camera: {e}")
             return False
     
+    @capture_locked
     def disconnect(self) -> bool:
         """
         Disconnect from camera.
@@ -114,6 +129,7 @@ class BuiltinCameraDriver(CameraDriver):
             logger.error(f"Error disconnecting camera: {e}")
             return False
     
+    @capture_locked
     def is_alive(self) -> bool:
         """
         Check if camera is still responding.
@@ -130,6 +146,7 @@ class BuiltinCameraDriver(CameraDriver):
         except Exception:
             return False
     
+    @capture_locked
     def get_frame(self) -> Optional[np.ndarray]:
         """
         Capture and return a frame from the camera.
@@ -161,6 +178,7 @@ class BuiltinCameraDriver(CameraDriver):
             logger.error(f"Error reading frame: {e}")
             return None
     
+    @capture_locked
     def get_resolution(self) -> Tuple[int, int]:
         """
         Get current camera resolution.
@@ -178,6 +196,7 @@ class BuiltinCameraDriver(CameraDriver):
         except Exception:
             return self.target_resolution
     
+    @capture_locked
     def get_fps(self) -> float:
         """
         Get current camera FPS.
