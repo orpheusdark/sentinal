@@ -1,0 +1,44 @@
+name: Bug report
+description: Report a reproducible problem in Sentinel.
+title: "[Bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: "For security concerns, use the security policy. Please omit credentials and private footage."
+  - type: input
+    id: version
+    attributes:
+      label: Sentinel version
+      placeholder: "0.2.0 Preview 1, or a commit SHA"
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Operating system and architecture
+      placeholder: "Windows 11 x64 / macOS Apple Silicon / Ubuntu x86-64"
+    validations:
+      required: true
+  - type: dropdown
+    id: installation
+    attributes:
+      label: Installation method
+      options:
+        - Windows setup
+        - Portable or native archive
+        - Source checkout
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Include the expected result and what actually happened.
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Redacted diagnostics
+      description: A short log excerpt or error message. Include camera model and browser version if relevant.
+      render: text

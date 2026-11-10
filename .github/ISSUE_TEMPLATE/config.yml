@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation and troubleshooting
+    url: https://github.com/orpheusdark/sentinal/blob/main/docs/README.md
+    about: Find installation, configuration and troubleshooting guidance.
+  - name: Security policy
+    url: https://github.com/orpheusdark/sentinal/security/policy
+    about: Report sensitive security concerns privately.

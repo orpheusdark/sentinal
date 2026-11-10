@@ -6,4 +6,4 @@ Preserve driver interfaces and existing endpoint contracts unless a documented s
 
 For UI changes, preserve keyboard operation, visible focus, semantic labels, contrast, narrow layouts, reduced motion and explicit disconnected/error states. Do not insert untrusted API data into HTML. Add regression coverage for material bugs rather than assertions that only mirror implementation.
 
-For release changes, build on each target platform, run frozen resource checks and complete physical-device acceptance checks. Review third-party license obligations before redistribution. The old README claimed MIT but the repository did not include a license text; the owner must explicitly settle licensing before public binary redistribution. Do not invent an owner license grant.
+For release changes, build on each target platform, run frozen resource checks and complete physical-device acceptance checks. Sentinel is distributed under the root MIT LICENSE. Third-party libraries retain their own licenses; include their notices with binary releases.

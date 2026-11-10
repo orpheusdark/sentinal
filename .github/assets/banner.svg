@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="320" viewBox="0 0 1280 320" role="img" aria-labelledby="title desc">
+  <title id="title">Sentinel — Local-first surveillance</title>
+  <desc id="desc">A navy and cyan Sentinel project banner with a geometric shield and camera symbol.</desc>
+  <defs><linearGradient id="bg" x2="1" y2="1"><stop stop-color="#080d17"/><stop offset="1" stop-color="#163443"/></linearGradient><pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0H0V40" fill="none" stroke="#68efd5" stroke-opacity=".08"/></pattern></defs>
+  <rect width="1280" height="320" rx="20" fill="url(#bg)"/><rect width="1280" height="320" rx="20" fill="url(#grid)"/>
+  <path d="M100 83 163 60l63 23v69c0 53-63 91-63 91s-63-38-63-91Z" fill="#102b32" stroke="#68efd5" stroke-width="3"/>
+  <path d="M121 150q42-45 84 0-42 45-84 0Z" fill="none" stroke="#68efd5" stroke-width="3"/><circle cx="163" cy="150" r="12" fill="#68efd5"/>
+  <text x="280" y="104" fill="#68efd5" font-family="Consolas,monospace" font-size="14" letter-spacing="4">LOCAL FIRST / PRIVATE BY DESIGN</text>
+  <text x="276" y="185" fill="#e6edf7" font-family="Bahnschrift,Trebuchet MS,sans-serif" font-size="72" font-weight="600" letter-spacing="10">SENTINEL</text>
+  <text x="280" y="229" fill="#b5c8de" font-family="Segoe UI,Arial,sans-serif" font-size="22">Your environment. In focus.</text>
+  <path d="M1110 65h95v65M1205 190v65h-95" fill="none" stroke="#68efd5" stroke-opacity=".5" stroke-width="2"/>
+  <text x="1000" y="282" fill="#9aadc5" font-family="Consolas,monospace" font-size="12" letter-spacing="2">WINDOWS · macOS · LINUX</text>
+</svg>
