@@ -22,7 +22,7 @@ Windows data: LOCALAPPDATA/Sentinel. macOS data: ~/Library/Application Support/S
 
 ## Cross-platform status
 
-Windows x64 is the platform built in this session. Source launchers and a manual Actions build matrix target macOS/Linux too. Native builds cannot be cross-compiled with this recipe; ARM and Linux ABI compatibility need their own runner/device checks. Linux may need system GUI/OpenGL libraries. macOS distribution needs camera permission metadata, Developer ID signing/notarization and device testing before public release. Windows Authenticode signing similarly requires the maintainer's signing identity; no signing credentials were requested or embedded.
+Windows x64 was built locally. macOS and Linux native builds and frozen-resource checks also passed on hosted Actions runners. Distribution archives preserve executable permissions and application links. Native builds cannot be cross-compiled with this recipe; ARM and Linux ABI compatibility need their own runner/device checks. Linux may need system GUI/OpenGL libraries. The macOS builder includes a camera usage description and refreshes the local ad-hoc signature. Public macOS distribution still needs Developer ID signing/notarization and device testing. Windows Authenticode signing similarly requires the maintainer's signing identity; no signing credentials were requested or embedded.
 
 A package build is not proof of camera capture or a production soak test. Run the acceptance checks in TESTING.md. The portable ZIP and custom setup executable are unsigned review builds. The custom setup has no automatic updater, rollback or Add/Remove Programs registration; the Inno recipe provides conventional install/uninstall integration when compiled.
 
