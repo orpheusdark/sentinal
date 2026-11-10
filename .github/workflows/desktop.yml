@@ -1,0 +1,27 @@
+name: Build desktop apps
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install --upgrade pip setuptools
+      - run: python -m pip install -r requirements-dev.txt
+      - run: python -m pytest -q
+      - run: python scripts/build_desktop.py
+      - if: runner.os == 'Windows'
+        run: python scripts/build_windows_setup.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Sentinel-${{ runner.os }}
+          path: dist/
+          retention-days: 14

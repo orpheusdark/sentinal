@@ -9,11 +9,11 @@ class RecordingsPage {
     }
     async cameras() {
         try {
-            const response = await fetch('/api/cameras'); const result = await response.json();
+            const response = await fetch('/api/analytics'); const result = await response.json();
             if (!result.success) return;
             for (const camera of result.data.cameras) {
-                const option = document.createElement('option'); option.value = camera.id;
-                option.textContent = `Camera ${camera.id}`; document.getElementById('cameraFilter').append(option);
+                const option = document.createElement('option'); option.value = camera.camera_id;
+                option.textContent = camera.name; document.getElementById('cameraFilter').append(option);
             }
         } catch { /* Archive remains available if the camera manager is offline. */ }
     }

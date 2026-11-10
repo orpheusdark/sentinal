@@ -34,6 +34,7 @@ def add_recording(path, **kwargs):
     ('SENTINEL_MOTION_MIN_CONTOUR_AREA', '700', 'motion', 'min_contour_area', 700),
     ('SENTINEL_SECURITY_ADMIN_PASSWORD', 'a-private-test-password', 'security', 'admin_password', 'a-private-test-password'),
     ('SENTINEL_WEB_USE_HTTPS', 'true', 'web', 'use_https', True),
+    ('SENTINEL_SECURITY_ADMIN_PASSWORD', '1234567890', 'security', 'admin_password', '1234567890'),
 ])
 def test_environment_fields_with_underscores(monkeypatch, tmp_path, name, value, section, field, expected):
     monkeypatch.setenv(name, value)
@@ -190,3 +191,86 @@ def test_desktop_data_outside_install(tmp_path):
     assert config.is_file() and Path.cwd() == target
     config.write_text('{"custom": true}')
     assert prepare_runtime(target).read_text() == '{"custom": true}'
+
+
+def test_loopback_rejects_untrusted_hosts():
+    assert WebServer().app.test_client().get('/api/config', headers={'Host': 'evil.example'}).status_code == 400
+
+
+def test_grouped_analytics():
+    add_recording('example.mp4', file_size_bytes=1024)
+    response = server_with_database().app.test_client().get('/api/analytics')
+    assert response.status_code == 200
+    data = response.json['data']
+    assert data['totals']['recording_count'] == 1
+    assert data['cameras'][0]['recording_count'] == 1
+
+
+def test_retention_preserves_active_recording(tmp_path):
+    from storage.manager import StorageManager
+    get_config().storage.recordings_dir = str(tmp_path / 'archive')
+    manager = StorageManager()
+    path = manager.recordings_path / 'active.mp4'; path.write_bytes(b'active')
+    stamp = (datetime.utcnow() - timedelta(days=40)).timestamp(); os.utime(path, (stamp, stamp))
+    manager.active_recording_path = lambda: str(path)
+    assert manager.enforce_retention_policy()['deleted_count'] == 0
+    assert path.exists()
+
+
+def test_synthetic_video_round_trip(tmp_path, monkeypatch):
+    import cv2
+    from recording.manager import RecordingManager
+    get_config().storage.recordings_dir = str(tmp_path / 'recordings')
+    manager = RecordingManager()
+    monkeypatch.setattr(manager, '_get_camera_resolution', lambda config: (64, 48))
+    manager.on_motion_detected(1, datetime.utcnow())
+    assert manager.is_recording
+    for index in range(8):
+        result = manager.write_frame(np.full((48, 64, 3), index * 20, dtype=np.uint8), datetime.utcnow(), 1)
+        assert result.success
+    manager._stop_recording()
+    capture = cv2.VideoCapture(manager.current_video_path)
+    try:
+        assert capture.isOpened()
+        assert int(capture.get(cv2.CAP_PROP_FRAME_COUNT)) == 8
+        assert capture.read()[0]
+    finally:
+        capture.release()
+    with get_database().get_session() as session:
+        row = session.query(Recording).one()
+        assert row.file_size_bytes > 0 and row.duration_seconds > 0
+
+
+def test_application_degraded_startup_and_shutdown(tmp_path, monkeypatch):
+    from app import Application
+    monkeypatch.setattr(WebServer, 'start', Mock())
+    monkeypatch.setattr(Application, '_initialize_signal_handlers', Mock())
+    path = tmp_path / 'app-settings.json'
+    path.write_text('{"camera":{"enabled":false}}')
+    application = Application(config_file=str(path))
+    try:
+        assert application.initialize()
+        assert application.context.db.health_check()
+        assert application.context.camera_manager.cameras == {}
+        assert application.context.web_server is not None
+    finally:
+        application.shutdown()
+
+
+@pytest.mark.skipif(os.name != 'nt', reason='Windows installer only')
+def test_windows_installer_preserves_existing_data(tmp_path, monkeypatch):
+    import zipfile
+    import scripts.windows_setup as setup
+    import sys
+    bundle = tmp_path / 'bundle'; bundle.mkdir()
+    with zipfile.ZipFile(bundle / 'sentinel-payload.zip', 'w') as archive:
+        archive.writestr('Sentinel.exe', b'test-executable')
+    monkeypatch.setattr(sys, '_MEIPASS', str(bundle), raising=False)
+    monkeypatch.setenv('LOCALAPPDATA', str(tmp_path / 'local'))
+    monkeypatch.setenv('APPDATA', str(tmp_path / 'roaming'))
+    monkeypatch.setattr(setup.subprocess, 'run', Mock())
+    data = tmp_path / 'local' / 'Sentinel'; data.mkdir(parents=True)
+    config = data / 'settings.json'; config.write_text('keep')
+    exe = setup.install()
+    assert exe.read_bytes() == b'test-executable'
+    assert config.read_text() == 'keep'

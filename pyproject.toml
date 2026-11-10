@@ -13,7 +13,7 @@ dynamic = ["dependencies"]
 dependencies = {file = ["requirements.txt"]}
 
 [tool.setuptools]
-py-modules = ["app", "monitor", "watchdog"]
+py-modules = ["app", "monitor", "watchdog", "desktop"]
 
 [tool.setuptools.packages.find]
 include = ["alerts*", "camera*", "config*", "database*", "motion*", "recording*", "storage*", "utils*", "web*"]

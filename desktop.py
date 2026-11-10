@@ -102,8 +102,10 @@ def main():
 
     def close():
         state['closing'] = True
-        stop()
-        stopped()
+        if state['app']:
+            stop()
+        else:
+            window.destroy()
 
     for label, command in [('Start Sentinel', start), ('Open dashboard', open_dashboard), ('Stop Sentinel', stop)]:
         tk.Button(window, text=label, command=command, bg='#193333', fg='#e6edf7', width=30, pady=5).pack(pady=3)

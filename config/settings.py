@@ -9,7 +9,7 @@ import json
 import os
 from pathlib import Path
 from typing import Any, Dict, Optional
-from dataclasses import dataclass, asdict, field
+from dataclasses import dataclass, asdict, field, fields
 import logging
 import secrets
 
@@ -83,7 +83,7 @@ class SecurityConfig:
     enable_auth: bool = False
     admin_username: str = "admin"
     admin_password: str = "sentinel"
-    session_secret: str = field(default_factory=lambda: secrets.token_hex(32))
+    session_secret: Optional[str] = field(default_factory=lambda: secrets.token_hex(32))
     require_api_key: bool = False
     api_key: Optional[str] = None
     password_hash_algorithm: str = "bcrypt"
@@ -145,7 +145,7 @@ class SentinelConfig:
     """Main application configuration."""
     
     app_name: str = "Project Sentinel"
-    version: str = "0.1.0"
+    version: str = "0.2.0"
     debug: bool = False
     auto_start: bool = True
     
@@ -167,6 +167,16 @@ class SentinelConfig:
     
     def _validate(self):
         """Validate configuration values."""
+        for section_name in ('camera', 'motion', 'recording', 'storage', 'database',
+                             'security', 'telegram', 'streaming', 'web', 'logging'):
+            section = getattr(self, section_name)
+            for item in fields(section):
+                if item.type in (bool, int, str) and type(getattr(section, item.name)) is not item.type:
+                    raise ValueError(f'Invalid type for {section_name}.{item.name}')
+        if self.security.max_login_attempts < 1 or self.security.session_timeout_minutes < 1 or self.security.lockout_duration_minutes < 1:
+            raise ValueError('Security timeouts and attempt limits must be positive')
+        if self.storage.cleanup_check_interval < 1:
+            raise ValueError('Cleanup interval must be positive')
         for section in (self.camera, self.streaming):
             if type(section.fps) is not int or not 1 <= section.fps <= 60:
                 raise ValueError("FPS must be an integer between 1 and 60")
@@ -272,7 +282,7 @@ class ConfigManager:
         """Get default configuration."""
         return {
             "app_name": "Project Sentinel",
-            "version": "0.1.0",
+            "version": "0.2.0",
             "debug": False,
             "auto_start": True,
             "camera": asdict(CameraConfig()),
@@ -322,6 +332,11 @@ class ConfigManager:
                 # Convert SENTINEL_CAMERA_FPS to camera.fps
                 config_path = key[len(env_prefix):].lower()
                 value = os.environ[key]
+                section, _, field_name = config_path.partition('_')
+                existing = config.get(config_path) if config_path in config else config.get(section, {}).get(field_name)
+                if isinstance(existing, str) or existing is None:
+                    ConfigManager._set_nested(config, config_path, value)
+                    continue
                 
                 # Try to parse as number
                 try:
@@ -356,7 +371,7 @@ class ConfigManager:
         """Convert dictionary to SentinelConfig object."""
         return SentinelConfig(
             app_name=config_dict.get("app_name", "Project Sentinel"),
-            version=config_dict.get("version", "0.1.0"),
+            version=config_dict.get("version", "0.2.0"),
             debug=config_dict.get("debug", False),
             auto_start=config_dict.get("auto_start", True),
             camera=CameraConfig(**config_dict.get("camera", {})),

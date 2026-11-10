@@ -184,8 +184,7 @@ class Application:
                 else:
                     raise ValueError("HTTPS requires both certificate and key paths")
 
-            web_thread = threading.Thread(target=self.context.web_server.run, args=(True, ssl_context), daemon=True)
-            web_thread.start()
+            self.context.web_server.start(threaded=True, ssl_context=ssl_context)
             scheme = 'https' if ssl_context else 'http'
             self.logger.info(f"Web server started on {scheme}://{web_config.host}:{web_config.port}")
 
@@ -260,6 +259,9 @@ class Application:
         if not self.initialize():
             self.shutdown()
             return 1
+        if self.context._shutdown_event.is_set():
+            self.shutdown()
+            return 0
         
         self.context.running = True
         self.logger.info("Application started")

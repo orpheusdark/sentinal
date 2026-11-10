@@ -53,10 +53,6 @@ class RecordingManager:
         self.motion_end_time: Optional[datetime] = None
         self.post_motion_buffer_end: Optional[datetime] = None
         
-        # Frame tracking
-        self.frame_queue = []
-        self.max_buffer_frames = 0
-        
         # Thread safety
         self.lock = threading.RLock()
         

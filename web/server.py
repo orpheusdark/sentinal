@@ -5,6 +5,7 @@ Responsibility: Web interface for surveillance system monitoring and control.
 """
 
 import hmac
+import threading
 from flask import Flask, render_template, request, jsonify, send_file, redirect, url_for, session
 import secrets
 from urllib.parse import urlsplit
@@ -70,6 +71,8 @@ class WebServer:
 
         self.app = Flask(__name__, template_folder=template_dir, static_folder=static_dir)
         self.app.config['JSON_SORT_KEYS'] = False
+        if host in ('127.0.0.1', 'localhost', '::1'):
+            self.app.config['TRUSTED_HOSTS'] = ['localhost', '127.0.0.1', '[::1]']
         self.app.secret_key = getattr(self.config.security, 'session_secret', None) or secrets.token_hex(32)
         self.app.permanent_session_lifetime = timedelta(minutes=self.session_timeout_minutes)
         
@@ -584,6 +587,10 @@ class WebServer:
 
                 session = self._db_session()
                 from database.models import Camera, Recording, MotionEvent
+                from sqlalchemy import func
+
+                recording_counts = dict(session.query(Recording.camera_id, func.count(Recording.id)).group_by(Recording.camera_id).all())
+                motion_counts = dict(session.query(MotionEvent.camera_id, func.count(MotionEvent.id)).group_by(MotionEvent.camera_id).all())
 
                 camera_count = session.query(Camera).count()
                 total_recordings = session.query(Recording).count()
@@ -597,8 +604,8 @@ class WebServer:
 
                 camera_summaries = []
                 for camera in session.query(Camera).order_by(Camera.id).all():
-                    recording_count = session.query(Recording).filter(Recording.camera_id == camera.id).count()
-                    motion_count = session.query(MotionEvent).filter(MotionEvent.camera_id == camera.id).count()
+                    recording_count = recording_counts.get(camera.id, 0)
+                    motion_count = motion_counts.get(camera.id, 0)
                     camera_summaries.append({
                         'camera_id': camera.id,
                         'name': camera.name,
@@ -608,9 +615,8 @@ class WebServer:
                         'motion_event_count': motion_count,
                     })
 
-                total_size_bytes = session.query(Recording.file_size_bytes).filter(Recording.file_size_bytes.isnot(None)).all()
+                recording_size_bytes = session.query(func.coalesce(func.sum(Recording.file_size_bytes), 0)).scalar()
                 session.close()
-                recording_size_bytes = sum(r[0] or 0 for r in total_size_bytes)
 
                 return jsonify({
                     'success': True,
@@ -769,6 +775,18 @@ class WebServer:
         self.http_server = make_server(self.host, self.port, self.app,
                                        threaded=threaded, ssl_context=ssl_context)
         self.http_server.serve_forever()
+
+    def start(self, threaded=True, ssl_context=None):
+        """Bind before returning so startup reports address/TLS failures."""
+        from werkzeug.serving import make_server
+        try:
+            self.http_server = make_server(self.host, self.port, self.app,
+                                           threaded=threaded, ssl_context=ssl_context)
+        except SystemExit as error:
+            raise RuntimeError('Unable to start the local HTTP server') from error
+        worker = threading.Thread(target=self.http_server.serve_forever, daemon=True)
+        worker.start()
+        return worker
 
     def stop(self):
         if self.http_server is not None:
