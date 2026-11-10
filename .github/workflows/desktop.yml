@@ -18,10 +18,19 @@ jobs:
       - run: python -m pip install -r requirements-dev.txt
       - run: python -m pytest -q
       - run: python scripts/build_desktop.py
+      - name: Check frozen application resources
+        run: python scripts/check_desktop.py
       - if: runner.os == 'Windows'
         run: python scripts/build_windows_setup.py
+      - if: runner.os == 'Linux'
+        run: tar -czf dist/Sentinel-Linux.tar.gz -C dist Sentinel
+      - if: runner.os == 'macOS'
+        run: ditto -c -k --sequesterRsrc --keepParent dist/Sentinel.app dist/Sentinel-macOS.zip
       - uses: actions/upload-artifact@v4
         with:
           name: Sentinel-${{ runner.os }}
-          path: dist/
+          path: |
+            dist/Sentinel-Setup-Windows.exe
+            dist/Sentinel-Linux.tar.gz
+            dist/Sentinel-macOS.zip
           retention-days: 14
