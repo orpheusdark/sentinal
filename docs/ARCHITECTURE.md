@@ -1,35 +1,47 @@
-# Architecture
+# Architecture — 0.3 preview
 
-Sentinel is a single-process Python application with a camera processing loop and a threaded local HTTP server. `desktop.py` supplies a Tk launcher; `app.py` owns manager initialization and shutdown. `monitor.py` and `watchdog.py` remain optional external supervisors.
+Sentinel is a local appliance with a desktop launcher, threaded HTTP API, one independently paced worker per configured camera, and a bounded background alert worker. Windows and Linux are the supported release targets.
 
 ```mermaid
 flowchart LR
-  Camera[OpenCV camera] --> Loop[Application processing loop]
-  Loop --> Motion[MOG2 motion detector]
-  Motion --> Events[Motion event manager]
-  Motion --> Recorder[MP4 recording manager]
-  Loop --> Recorder
-  Recorder --> Files[Local recordings]
-  Events --> DB[(SQLite / SQLAlchemy)]
-  Recorder --> DB
-  Loop --> Stream[Latest frame / cached JPEG]
-  Stream --> HTTP[Flask HTTP API]
-  DB --> HTTP
-  HTTP --> UI[Browser dashboard]
+  Setup[Camera setup wizard] --> Config[Validated camera profiles]
+  Config --> Coordinator[Application coordinator]
+  Coordinator --> A[Camera pipeline A]
+  Coordinator --> B[Camera pipeline B]
+  A --> MotionA[Zones / schedule / optional object filter]
+  B --> MotionB[Zones / schedule / optional object filter]
+  MotionA --> Recording[Independent recorders and motion events]
+  MotionB --> Recording
+  Recording --> DB[(SQLite WAL)]
+  Recording --> Archive[MP4 and thumbnail files]
+  MotionA --> Queue[Bounded alert queue]
+  MotionB --> Queue
+  Queue --> Telegram[Optional Telegram delivery]
+  Archive --> Review[Seekable JPEG playback / downloads]
+  DB --> API[Flask API / dashboard]
+  Review --> API
 ```
 
-## Ownership and threading
+## Camera ownership
 
-The application loop captures BGR frames, detects motion, manages event transitions, writes recordings and publishes a frame copy. The streaming manager encodes once per published frame/quality, reusing the result for multiple readers under a lock. Browser polling uses a new timeout only after the previous request finishes and pauses in hidden tabs. Frames use HTTP JSON/base64 JPEG, not WebSockets.
+`CameraManager` discovers local devices and owns their capture handles and database IDs. Drivers choose DirectShow on Windows and the platform backend on Linux. Each capture has its own lock. Reading a slow device does not hold the manager-wide lock or serialize other camera workers.
 
-Recording metadata is inserted once after OpenCV closes the file. Duration is frames/FPS; event duration uses UTC wall time. Recording paths are organized by UTC year/month/day/camera. SQLite uses WAL and separate pooled connections for concurrent sessions. API sessions are request-scoped and closed during teardown. Index names are unique across the SQLite schema.
+`CameraPipeline` owns a detector, motion event manager, recorder and latest-frame stream for one profile. Capture/motion/recording state is never shared between feeds. Settings apply after restart. The coordinator performs periodic reconnect, retention, disk pressure and optional update checks. OpenCV defaults to one internal thread to avoid competing thread pools across pipelines.
 
-Storage cleanup uses the configured recordings volume, excludes symbolic links and the active recording, and removes oldest files at critical capacity. Retention runs periodically using monotonic elapsed time. Cleanup and file deletion are not a transactional database operation; historical metadata can outlive a deleted video.
+The profile determines FPS, resolution, motion threshold, recording mode, segment length, zones and schedule. Global recording enabled is a master switch. Detection warms its background model before triggering; cooldown uses elapsed time. Motion event updates are throttled to once per second and finalized on shutdown.
 
-## Lifecycle
+## Reliability and storage
 
-Configuration → paths/logging → database → camera → motion → recording → storage → alerts → streaming → HTTP server. Missing camera is a degraded state. Shutdown stops HTTP, finalizes the recorder, disconnects cameras and disposes database connections. The desktop UI waits for the worker to finish before closing. Configuration edits are validated, persisted atomically and applied on restart.
+Telegram messages use a bounded queue, per-camera cooldown and limited background retries. Queue saturation drops alerts and increments diagnostics rather than stopping capture. Shutdown drains briefly, then stops waiting for network delivery.
 
-## Extension points
+Recorders persist metadata after file finalization, save a thumbnail, associate motion events and rotate long recordings into bounded segments. Cleanup skips active videos/symlinks, removes companion images and marks missing recordings deleted in SQLite. A startup reconciliation repairs stale archive entries after offline file removal. Filesystem deletion and database updates are not a single transaction; the next reconciliation recovers interrupted cleanup.
 
-`CameraDriver` and `RecorderDriver` define driver interfaces. Current automatic discovery uses camera index 0. The application has one active detector/recorder/preview pipeline; multiple independent camera feeds, RTSP provisioning, AI inference and multi-user access are future work. Placeholder packages are retained for compatibility and excluded from release package discovery where unused.
+## HTTP and review
+
+API sessions are request-scoped. SQLite uses WAL and separate pooled connections. Private routes enforce configured authentication; JSON writes use a custom header and origin checks. Archive pagination and analytics use bounded queries and SQL aggregates.
+
+Live frames are JPEG-encoded once per published frame/quality and shared by readers. Browser polling does not overlap requests and pauses in hidden tabs. Historical playback decodes local MP4 to JPEG frames on demand, with four cached decoders and a two-minute idle lifetime. This avoids requiring browser support for MPEG-4 Part 2. Review preview targets 5 FPS; originals retain recording FPS. Recordings have no audio.
+
+## Extension limits
+
+Profiles support up to eight local built-in/USB devices, subject to measured hardware capacity. There is no RTSP provisioning, cloud storage, user-role system or automatic software installation. Built-in HOG detects people; a user-supplied compatible local COCO ONNX model enables person/vehicle filtering. Inference runs in its camera worker and can reduce that feed's FPS. Model accuracy and real-world capacity require separate testing.

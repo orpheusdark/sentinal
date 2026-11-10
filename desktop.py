@@ -39,7 +39,9 @@ def main():
         ConfigManager()
         server = WebServer()
         with server.app.test_client() as client:
-            for route in ('/', '/settings', '/recordings', '/api/health', '/static/css/style.css'):
+            for route in ('/', '/settings', '/recordings', '/cameras/setup', '/diagnostics',
+                          '/api/health', '/static/css/style.css', '/static/css/features.css',
+                          '/static/js/camera_setup.js', '/static/js/diagnostics.js'):
                 if client.get(route).status_code != 200:
                     raise RuntimeError(f'Bundled resource failed: {route}')
         return 0

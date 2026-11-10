@@ -13,26 +13,31 @@
 
 ## Download
 
-**[Sentinel 0.2.0 Preview 1](https://github.com/orpheusdark/sentinal/releases/tag/v0.2.0-preview.1)** is an unsigned preview release. Python is bundled in the desktop packages.
+**[Sentinel 0.3.0 Preview 1](https://github.com/orpheusdark/sentinal/releases/tag/v0.3.0-preview.1)** is an unsigned preview release. Python is bundled in the desktop packages.
 
 | Platform | Download | Start |
 |---|---|---|
-| Windows x64 | [Setup executable](https://github.com/orpheusdark/sentinal/releases/download/v0.2.0-preview.1/Sentinel-Setup-Windows.exe) | Run setup → Install Sentinel → Open Sentinel |
-| Windows x64, portable | [Portable ZIP](https://github.com/orpheusdark/sentinal/releases/download/v0.2.0-preview.1/Sentinel-Windows-portable.zip) | Extract everything; open `Sentinel/Sentinel.exe` |
-| Linux x86-64 | [Application archive](https://github.com/orpheusdark/sentinal/releases/download/v0.2.0-preview.1/Sentinel-Linux-x86_64.tar.gz) | Extract; run `./Sentinel/Sentinel` |
+| Windows x64 | [Setup executable](https://github.com/orpheusdark/sentinal/releases/download/v0.3.0-preview.1/Sentinel-Setup-Windows.exe) | Run setup → Install Sentinel → Open Sentinel |
+| Windows x64, portable | [Portable ZIP](https://github.com/orpheusdark/sentinal/releases/download/v0.3.0-preview.1/Sentinel-Windows-portable.zip) | Extract everything; open `Sentinel/Sentinel.exe` |
+| Linux x86-64 | [Application archive](https://github.com/orpheusdark/sentinal/releases/download/v0.3.0-preview.1/Sentinel-Linux-x86_64.tar.gz) | Extract; run `./Sentinel/Sentinel` |
 
-Verify downloads with [SHA-256 checksums](https://github.com/orpheusdark/sentinal/releases/download/v0.2.0-preview.1/SHA256SUMS.txt). See [installation requirements](docs/INSTALLATION.md) and [release notes](docs/releases/0.2.0-preview.1.md) before deploying.
+Verify downloads with [SHA-256 checksums](https://github.com/orpheusdark/sentinal/releases/download/v0.3.0-preview.1/SHA256SUMS.txt). See [installation requirements](docs/INSTALLATION.md) and [release notes](docs/releases/0.2.0-preview.1.md) before deploying.
 
 ## What Sentinel does
 
-- **Monitor locally:** live camera preview, connection status, recording state and CPU/memory/disk telemetry.
-- **Capture activity:** OpenCV motion detection, motion-triggered or continuous MP4 recording, and a configurable post-motion tail.
-- **Review recordings:** filter the archive, browse pages and download finalized videos.
+- **Configure cameras:** discover and preview local devices, then save independent resolution, FPS, motion and recording profiles.
+- **Monitor locally:** switch between independent feeds and inspect connection, recording and resource telemetry.
+- **Capture activity:** motion zones, weekly/overnight schedules, bounded video segments, optional people/vehicle filtering and independent event tracking.
+- **Review recordings:** linked event timeline, thumbnails, seekable in-app preview and full-quality original downloads.
 - **Manage storage:** configurable retention and disk-pressure cleanup, with active recordings protected.
 - **Configure clearly:** validated settings, explicit restart requirements and environment overrides.
-- **Stay informed:** optional Telegram startup, shutdown and motion alerts.
+- **Stay informed:** background Telegram retries, redacted diagnostics and opt-in GitHub release notifications.
 
 The dashboard uses responsive layouts, keyboard focus indicators, labeled controls and reduced-motion styling. The desktop launcher starts, opens and stops the local service. Private data is kept separately from application binaries.
+
+### Recording review
+
+![Sentinel recording review using synthetic test footage](.github/assets/review-preview.jpg)
 
 ## Quick start
 
@@ -76,6 +81,7 @@ Convenience launchers: `scripts/start-windows.bat` or `sh scripts/start-unix.sh`
 | [Installation](docs/INSTALLATION.md) | [Architecture](docs/ARCHITECTURE.md) |
 | [Configuration](docs/CONFIGURATION.md) | [API reference](docs/API.md) |
 | [Features and limits](docs/FEATURES.md) | [Testing](docs/TESTING.md) |
+| [Efficiency and practical value](docs/EFFICIENCY.md) | [Camera pipeline architecture](docs/ARCHITECTURE.md) |
 | [Deployment](docs/DEPLOYMENT.md) | [Desktop packaging](docs/PACKAGING.md) |
 | [Troubleshooting](docs/TROUBLESHOOTING.md) | [Audit and remaining work](docs/AUDIT.md) |
 | [Security](docs/SECURITY.md) | [Changelog](docs/CHANGELOG.md) |
@@ -86,7 +92,7 @@ The [documentation index](docs/README.md) links all current guides. Historical p
 
 The final local application test run passed **92 tests**, including basic webcam checks. GitHub verification passed on Windows and Linux with Python 3.11 and 3.12. Native builds and frozen-resource checks passed on all three platforms. See [recorded verification and limitations](docs/VERIFICATION.md).
 
-This preview still needs full GUI installation, real-world recording/cleanup soak tests and browser visual acceptance. Desktop packages do not have distribution signing. Independent multi-camera pipelines, AI detection, cloud backup and automatic updates are future work.
+The camera wizard, schedules/zones, playback, diagnostics and a narrow responsive layout were verified in a browser using synthetic footage. Full installer/device acceptance, simultaneous physical multi-camera operation, model accuracy and long recording/cleanup soak tests remain outstanding. Distribution signing is prepared but no certificate is configured. Cloud backup and automatic software installation are not included.
 
 ## Development
 

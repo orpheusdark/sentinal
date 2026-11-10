@@ -1,34 +1,30 @@
-# Verification â€” 2026-11-10
+# Verification — 0.3 preview, 2026-11-10
 
-Verified locally on Windows x64 with Python 3.11.9 in a fresh project virtual environment. Baseline checkout: `2a82a8a`. Initial dependency installation failed because `asyncio-contextmanager==1.0.0` is unavailable; that unused dependency and other unused imports' packages were removed.
+Application version: 0.3.0rc1, distributed as v0.3.0-preview.1. Supported releases: Windows x64 and Linux x86-64.
 
 | Check | Observed result |
 |---|---|
-| Final full pytest suite | **92 passed, no skips** in 17.00 seconds |
-| Hardware tests | Earlier restricted runs skipped three camera tests; all three passed in the final run with device access |
-| Coverage run | 63% across measured runtime modules in the earlier 88-pass/3-skip run; not full behavioral coverage |
-| Synthetic capture pipeline | Eight generated frames recorded, finalized, decoded and persisted with metadata |
-| Lifecycle | Startup without a camera and graceful shutdown tested with HTTP startup mocked |
-| Windows installer logic | Payload extraction and preservation of existing user data tested with shortcut creation mocked |
-| Fatal Python lint | `python -m ruff check .` passed |
-| Dependency consistency | `python -m pip check` passed |
-| Dependency advisories | Final `pip-audit` reports **no known vulnerabilities** in the installed environment |
-| Legacy setup checker | All six setup checks passed |
-| Python distribution | Source archive and wheel built successfully |
-| Desktop distribution | PyInstaller Windows bundle built; bundled-resource check exit code 0 |
-| Windows setup | Single-file per-user installer built from the native bundle |
-| GitHub verification matrix | All six Windows/macOS/Linux jobs on Python 3.11/3.12 passed for `9b94519` |
-| Native macOS/Linux | Both final native builds and frozen-resource checks passed in GitHub Actions |
+| Final full local suite | **116 passed, no skips**, 17.39 seconds with device access |
+| Restricted-environment runs | Hardware tests were skipped when the camera was unavailable; earlier feature runs passed up to 111 tests with 3 skips |
+| Lint / dependency consistency | Fatal Python lint, JavaScript syntax and pip check passed |
+| Dependency advisories | Final pip-audit reported no known vulnerabilities |
+| Python package | Source archive and wheel built successfully |
+| Windows/Linux core CI | Four Python 3.11/3.12 jobs passed for core commit 22e4be6 |
+| Native resource checks | Build scripts render setup/review/diagnostics pages and assets in frozen binaries |
+| Signing | PowerShell syntax checked; credential-backed signing not run because no certificate exists |
 
-The original suite had 56 passing tests and 3 hardware skips after initial corrections. Added regressions cover materially broken behavior. An earlier audit identified 21 advisory entries in old pip/setuptools tooling; both were upgraded and the final scan was clean. `requirements-verified-windows.txt` records the exact verified development/build environment, including test and audit tools; it is a platform snapshot rather than a universal runtime lock.
+## New behavior exercised
 
-## Verification limits and release gates
+Tests cover bounded alert queue saturation and non-blocking enqueue under a stalled network sender; schedule boundaries/overnight windows; ignored motion outside zones; two independent synthetic camera pipelines; event finalization and thumbnail persistence; video segment rotation; global recording disable; archive reconciliation and companion deletion; setup JSON validation/persistence; decoded playback and seek; linked timeline; protected APIs; redacted diagnostics; update ordering and URL containment; and an optional ONNX adapter with generated output tensors.
 
-- The in-app browser and native browser could not reach the local preview. The environment reported restricted socket access during connectivity checks. Page rendering is covered through Flask clients, but no successful browser visual/interaction test is claimed. Responsive layouts and accessibility require real-browser acceptance checks.
-- Basic webcam connect/frame/manager tests passed in the final local run. Real motion footage, long-running recording/cleanup, actual Telegram delivery and private-network TLS/mobile access were not validated. Synthetic video round-trip testing passed.
-- The frozen resource check exercises imports/templates/static files without launching the GUI or camera. Full GUI start/stop/install/uninstall acceptance remains necessary. Installer file behavior was tested in temporary folders with shell shortcut creation mocked; the installer was not installed into the user's real Programs directory.
-- macOS/Linux native builds and resource checks passed on hosted runners. Physical camera and GUI runtime behavior on those platforms remain unverified on end-user devices. Android/iOS native apps are not provided; mobile devices use the responsive browser interface of a secured host.
-- Desktop outputs lack distribution signing. Code signing/notarization and platform acceptance tests remain release-owner gates. The repository owner selected the MIT license; third-party libraries retain their own licenses. No signing secrets were accessed.
-- Build/test temporary-file renames in the restricted system temp directory failed. Retrying in workspace-owned temporary directories succeeded; this did not require weakening application file writes.
+## Browser evidence
 
-Review [Audit](AUDIT.md), [Security](SECURITY.md) and [Testing](TESTING.md) for remaining risks and reproducible checks. Remote evidence: [verification matrix](https://github.com/orpheusdark/sentinal/actions/runs/42753365015), [final native build run](https://github.com/orpheusdark/sentinal/actions/runs/42753467209). Remote native success proves packaged resources and imports, not physical-device acceptance.
+An isolated server used generated test footage. Camera name, zone and weekday schedule edits saved successfully and showed the restart requirement. Timeline, thumbnails and playback rendered. Play/pause and keyboard seeking were checked. A content-policy issue blocking playback blob images was found and fixed. Diagnostics rendered, a real public GitHub update check completed, and update preference persistence worked. At a 390-pixel requested viewport, content width matched available viewport width with no horizontal overflow. Screenshots contain synthetic footage only.
+
+## Scope limits
+
+Basic webcam tests passed locally. Simultaneous physical multi-camera capacity, full installer/upgrade/uninstall acceptance, long recording/cleanup/reconnect/power-loss operation, optional model accuracy, actual Telegram delivery and remote TLS deployment remain to be checked on target devices. In-app playback is a five-FPS JPEG review preview; original downloads retain recording FPS and recordings have no audio. Optional vehicle detection requires a user-supplied compatible local model. Eight profile slots do not certify eight-camera performance.
+
+The Windows signing workflow is prepared, but no signing identity was supplied. Current packages remain unsigned. Model weights and signing secrets were not downloaded or fabricated. The MIT license and third-party notices accompany releases.
+
+Historical [0.2 verification](releases/0.2.0-verification.md) is retained separately. See [Testing](TESTING.md), [Efficiency](EFFICIENCY.md) and [Audit](AUDIT.md) for interpretation and remaining work. Core CI evidence: [Windows/Linux verification](https://github.com/orpheusdark/sentinal/actions/runs/42759396443).

@@ -1,45 +1,49 @@
-# HTTP API
+# HTTP API — 0.3 preview
 
-Base URL defaults to `http://127.0.0.1:5000`. Most routes return `{"success":true,"data":{...}}`; failures return `{"success":false,"error":"..."}`. Health is the exception: status/timestamp are top-level. Internal exception details stay in server logs.
+Default base: `http://127.0.0.1:5000`. Normal JSON responses use `{"success":true,"data":{...}}`; failures use `{"success":false,"error":"..."}`. Public liveness is the exception and returns status/timestamp at the top level.
 
 | Method | Route | Result |
 |---|---|---|
-| GET | /api/health | Public process liveness, not camera readiness |
-| GET | /api/auth/status | Session/auth flags |
-| GET | /api/system/info | OS, CPU, memory, disk information |
-| GET | /api/system/health | Resource assessment and camera connectivity |
-| GET | /api/system/metrics | Nonblocking CPU/memory/disk snapshot |
-| GET | /api/system/disk | Storage-volume status and recording directory statistics |
-| GET | /api/recording/status | Current recording flag/path/status |
-| GET | /api/cameras | Driver IDs, connection and status |
-| GET | /api/analytics | Database totals and per-camera summaries |
-| GET | /api/recordings | Filtered bounded archive |
-| GET | /api/recordings/{id}/download | Attachment after storage-root containment check |
-| GET | /api/motion-events | Latest events plus matching total |
-| GET | /api/stream/frame | Current frame as base64 JPEG |
-| GET | /api/config | Non-secret editable configuration sections |
-| PUT | /api/config | Validate and persist allowed settings; restart required |
+| GET | /api/health | Public HTTP process liveness |
+| GET | /api/auth/status | Session/authentication flags |
+| GET | /api/system/info, /api/system/health, /api/system/metrics | Protected system information, health and telemetry |
+| GET | /api/system/disk | Recording-volume and storage information |
+| GET | /api/recording/status | Aggregate recording flag; legacy first-video field retained |
+| GET | /api/cameras | Driver IDs, database IDs, indices, names and connectivity |
+| GET | /api/analytics | Non-deleted archive totals and grouped camera counts |
+| GET | /api/recordings | Paginated archive |
+| GET | /api/recordings/{id}/download | Original file attachment |
+| GET | /api/recordings/{id}/thumbnail | JPEG thumbnail; legacy rows get a decoded first-frame fallback |
+| GET | /api/recordings/{id}/playback | Duration/FPS/dimensions and review preview metadata |
+| GET | /api/recordings/{id}/frame?time=2.5 | JPEG frame at a non-negative finite time |
+| GET | /api/motion-events | Recent events and matching total |
+| GET | /api/timeline | Recent events linked to available recordings |
+| GET | /api/stream/frame?camera_id=2 | Base64 JPEG from selected database camera ID; stale frames return 404 |
+| GET | /api/camera-setup | Validated profiles and setup capabilities |
+| POST | /api/camera-setup/discover | Bounded local camera discovery |
+| POST | /api/camera-setup/preview | Snapshot using index/fps/resolution; active feeds are not reconfigured |
+| PUT | /api/camera-setup | Persist `{profiles:[...]}` and require restart |
+| GET, PUT | /api/config | Non-secret defaults / validated editable patch |
+| GET | /api/diagnostics | Redacted process, camera, queue and update status |
+| GET | /api/updates | Current cached update state |
+| POST | /api/updates/check | Start a rate-limited background GitHub check |
 
-## Access control
+HTML pages: `/`, `/recordings`, `/cameras/setup`, `/settings`, `/diagnostics`, `/login`.
 
-With dashboard authentication enabled, private routes require a session from form POST `/login` (`username`, `password`, optional local `next`). Browser page requests redirect to login; unauthenticated API requests return 401. GET `/logout` clears the session. Authenticated admin sessions can use APIs without an API key. If API-key protection is enabled without session auth, protected API reads and writes require `X-API-Key`; public liveness remains accessible. Keys in query strings are rejected. When both protections are configured, an API key does not substitute for login.
+## Access and writes
 
-JSON writes also require `Content-Type: application/json` and `X-Sentinel-Request: dashboard`. Cross-origin writes are rejected; CORS is not enabled. Credentials/settings remain admin-only under network access.
+When enabled, dashboard authentication protects private routes. Browser page requests redirect to login; API requests without a session return 401. POST `/login` uses username/password and an optional local redirect. GET `/logout` clears the session. Authenticated admin sessions can use the APIs without a separate key. API-key-only mode requires `X-API-Key` for private reads and writes. A key does not substitute for login when session authentication is configured.
 
-## Archive queries
+JSON writes require `Content-Type: application/json` and `X-Sentinel-Request: dashboard`. Cross-origin writes are rejected and CORS is not enabled. Bodies are limited to 128 KiB to accommodate bounded multi-camera profiles. Unknown fields/types/ranges return 400; missing request headers return 403. Discovery/preview already in progress returns 409. Hardware capability is not guaranteed by successful configuration validation.
 
-`days` defaults to 7, clamped to 1–365; optional integer `camera_id` filters the database camera ID. `limit` defaults to 100, clamped to 1–500; `offset` defaults to zero. Ordering is newest first then descending ID. Response data includes recordings, count (returned rows), total (matching rows), limit and offset. Soft-deleted records are excluded. The legacy quality field returns null because historical schema does not store it.
+## Query bounds
 
-Motion queries accept `hours` (default 24, clamped 1–8760) and optional camera_id. At most 100 latest events are returned; count is returned rows and total is the matching count. Naive ISO timestamp strings represent UTC; clients must interpret them as UTC.
+Archive: days defaults to 7 (1–365), limit to 100 (1–500), offset to zero, optional integer database camera_id. Newest first; response includes recordings, count, total, limit and offset. Deleted records are excluded. Historical quality remains null because the schema never stored it.
 
-## Settings example
+Events/timeline: hours defaults to 24, bounded 1–8760, optional camera_id. Events return at most 100 rows, timeline at most 200 events with up to 500 candidate recordings for matching. Naive ISO timestamps represent UTC. Schedules use host-local time, not these UTC event strings.
 
-```http
-PUT /api/config
-Content-Type: application/json
-X-Sentinel-Request: dashboard
+## Review and diagnostics limits
 
-{"camera":{"fps":20},"recording":{"post_motion_seconds":15}}
-```
+Playback is a seekable JPEG preview targeting 5 FPS, not a transcoded video or audio stream. At most four local decoders are cached; idle decoders expire after two minutes. All recording paths are contained under the storage root. A deleted/missing recording returns 404; invalid playback time returns 400; unsupported decode returns 415. Downloads preserve full source frame rate.
 
-Successful response: `{"success":true,"restart_required":true,"message":"Settings saved. Restart Sentinel to apply."}`. Invalid values, types or unapproved sections return 400. Missing custom write header returns 403. Request bodies are limited to 16 KiB. Downloads return 404 for missing metadata/video and 403 for a path outside configured storage. A frame with no signal returns 404. Managers unavailable at startup can return 500. No deletion API exists.
+Diagnostics intentionally omit credentials, hostnames, IP addresses and paths. Camera names remain visible as configured. Update status is cached; only explicit checks or an opt-in startup/daily setting contact GitHub. A failed update check never changes installed software.

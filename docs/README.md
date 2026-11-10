@@ -1,6 +1,6 @@
 # Sentinel documentation
 
-Current operating and developer documentation for version 0.2.0.
+Current operating and developer documentation for version 0.3 preview.
 
 | Guide | Purpose |
 |---|---|
@@ -8,6 +8,7 @@ Current operating and developer documentation for version 0.2.0.
 | [Desktop packaging](PACKAGING.md) | Native builds and platform limits |
 | [Architecture](ARCHITECTURE.md) | Components, data flow and lifecycle |
 | [Configuration](CONFIGURATION.md) | Settings, overrides and secrets |
+| [Efficiency](EFFICIENCY.md) | Measurements and practical value |
 | [Features](FEATURES.md) | Implemented behavior and limitations |
 | [API](API.md) | Routes, payloads, authentication and pagination |
 | [Security](SECURITY.md) | Threat model and safe operation |

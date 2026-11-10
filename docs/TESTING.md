@@ -1,6 +1,6 @@
-# Testing
+# Testing — 0.3 preview
 
-Install `requirements-dev.txt` into an isolated environment after upgrading pip/setuptools. Run from the repository root:
+Install requirements-dev.txt in a virtual environment with updated pip/setuptools. Run:
 
 ```sh
 python -m pytest -q
@@ -11,16 +11,18 @@ python desktop.py --self-check
 python -m build
 ```
 
-Tests create independent configuration/databases under temporary directories and change working directory so retention tests cannot touch real recordings. Regression tests cover environment overrides, invalid JSON, schema creation, health SQL, login redirects/unicode passwords, API keys, cross-origin writes, settings validation/persistence, downloads/pagination/path containment, finalized recording metadata, renewed motion tails, JPEG caching/frame ownership and desktop data initialization. Original camera/motion/recording/web tests remain.
+The full local run passed 116 tests with device access. Restricted-environment runs skipped the three original hardware tests. Tests isolate configuration, SQLite and storage in temporary directories so retention cannot touch real footage.
 
-Camera integration tests may skip without a physical camera. MP4 writer tests depend on platform codec availability. A skip is not a validated hardware pass. The fatal-error linter checks undefined references/syntax, not all stylistic or typing issues.
+New coverage exercises queue saturation/slow delivery, schedule boundaries and overnight windows, ignored motion outside zones, per-camera event/recording isolation, thumbnail generation, file/database reconciliation, bounded segment rotation, setup validation/persistence, JPEG playback and seek, event-to-recording links, API access control, diagnostics redaction, update version ordering and the optional ONNX adapter with synthetic model output. These tests do not establish real-world detector accuracy.
 
-`desktop.py --self-check` loads configuration and renders bundled pages/static resources without opening the GUI or accessing the camera. On Windows, run the frozen `dist/Sentinel/Sentinel.exe --self-check` and inspect its process exit code. This proves bundle imports/resources, not complete GUI/hardware operation.
+## Browser acceptance performed
 
-## Acceptance checks per OS
+An isolated local preview used synthetic footage. Camera name/zone/schedule edits saved successfully with the expected restart message. Timeline and archive thumbnails rendered. A recording opened, played and supported keyboard seeking. Diagnostics and a live GitHub update check returned usable results; update preferences saved. The wizard was checked at a narrow 390-pixel viewport with no horizontal overflow. Screenshots contain synthetic frames, not private camera footage.
 
-Install as an ordinary user; start the app; allow the device's camera only through normal user-approved OS controls. Confirm live video, motion onset, resumed motion before tail expiry, finalized MP4 playback, metadata download, pagination, settings restart behavior, stop/start and window-close shutdown. Disconnect/reconnect the camera and fill a disposable test archive to exercise cleanup. Verify existing data survives application updates.
+## Native verification
 
-Use desktop/tablet/phone widths, keyboard-only navigation, 200% zoom, a screen reader and reduced-motion mode. Check that failures are visible and no horizontal overflow hides controls. Verify auth, TLS and cookie behavior on the actual remote-device URL. These are explicit release gates where the current host cannot provide evidence.
+Build with `python scripts/build_desktop.py`, then `python scripts/check_desktop.py`. On Windows build setup with `python scripts/build_windows_setup.py`. The frozen check renders pages/static resources without starting camera capture. CI targets Windows/Linux on Python 3.11/3.12. Signing is optional until credentials exist; the build input `require_windows_signing=true` fails instead of silently producing an unsigned package when signing was required.
 
-CI verifies supported Python versions on Windows, macOS and Linux; desktop bundles are available from a manually dispatched workflow. Consult [Verification](VERIFICATION.md) for results actually observed in this session.
+## Remaining device and soak checks
+
+Complete installation/update/uninstallation acceptance, simultaneous physical multi-camera capture, long-running disk pressure/reconnect, power-loss recovery and network TLS tests on target devices. Validate optional HOG/ONNX models with representative local scenes, varied lighting and false-positive/negative measurements. Real Telegram delivery was not tested with user credentials. Do not infer eight-camera capacity or critical-security reliability from synthetic tests.

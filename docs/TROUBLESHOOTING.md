@@ -19,3 +19,9 @@
 | Test/build temp rename denied | Use a writable temporary directory; pytest --basetemp=./build/test-temp; build --sdist-extract-dir ./build/sdist-temp |
 
 Logs are JSON under the active data directory's logs/. Share only redacted excerpts. Before changing a database, make a backup; do not delete the only database to troubleshoot. If startup cannot create schema, verify database file permissions and disk space, then test a separate empty data directory. An abrupt process kill can leave an incomplete MP4; graceful Stop is preferred.
+
+## Camera profiles and review
+
+If a camera is missing, close other camera applications, verify OS permissions manually and use the local device index. Requested FPS/resolution may differ from hardware output. Save profiles and restart. If recording is idle, check the global master switch, camera-enabled flags, schedule and motion zone, then inspect frame age/errors in Diagnostics. HOG mode detects people only; vehicle filtering needs a compatible local ONNX model. Outside-schedule recording is intentionally stopped while preview stays available.
+
+If review is unavailable, try the original download; corrupt/incomplete videos may not decode. Preview is five FPS and video-only. A disappeared file is removed from the archive by reconciliation. An update check failure changes no installed files; retry later. Signing-required CI fails until valid Windows certificate secrets and a timestamp service are configured.

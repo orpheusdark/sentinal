@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.0 Preview 1 — 2026-11-10
+
+Added camera discovery/setup previews; validated independent camera profiles; per-camera workers, motion zones and weekly/overnight schedules; optional built-in people detection and local COCO ONNX people/vehicle filtering; thumbnails, linked event timeline and seekable JPEG review playback; diagnostics export and opt-in release notifications. Added bounded background Telegram retries, archive/file reconciliation and maximum video segment duration. Fixed Linux capture backend, sensitivity direction, time-based cooldown, global recording master switch and repeated error-log flooding. OpenCV defaults to one internal thread based on local component measurements. Added Windows version metadata and certificate-backed signing hooks. Windows and Linux are the supported release targets; no signing identity was supplied.
+
 ## 0.2.0 â€” 2026-11-10
 
 Added native desktop launcher and Windows packaging, per-user installer builder, native build workflow, responsive dashboard redesign, archive pagination, local preview pause/refresh controls, real validated settings persistence and comprehensive operating/developer documentation.

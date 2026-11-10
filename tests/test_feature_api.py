@@ -117,3 +117,9 @@ def test_feature_routes_require_authentication():
     client=WebServer().app.test_client()
     for path in ['/api/diagnostics','/api/timeline','/api/camera-setup','/api/recordings/1/frame','/api/updates']:
         assert client.get(path).status_code==401
+
+
+def test_new_pages_and_resources_render_without_camera_hardware():
+    client=WebServer().app.test_client()
+    for path in ['/cameras/setup','/diagnostics','/static/css/features.css','/static/js/camera_setup.js','/static/js/diagnostics.js']:
+        assert client.get(path).status_code==200

@@ -1,0 +1,89 @@
+{
+  "default_opencv": {
+    "kind": "synthetic component benchmark; no live camera/browser/network",
+    "python": "3.11.9",
+    "logical_cpus": 12,
+    "resolutions": [
+      {
+        "width": 640,
+        "height": 480,
+        "frames": 60,
+        "motion_plus_jpeg_fps": 137.7,
+        "frame_p50_ms": 7.08,
+        "frame_p95_ms": 7.98,
+        "core_cpu_percent_estimate_at_15fps": 39.06,
+        "mp4_writer_fps": 427.48,
+        "mp4_test_bytes": 31934,
+        "process_rss_mb": 109.6
+      },
+      {
+        "width": 1280,
+        "height": 720,
+        "frames": 60,
+        "motion_plus_jpeg_fps": 40.78,
+        "frame_p50_ms": 24.06,
+        "frame_p95_ms": 26.77,
+        "core_cpu_percent_estimate_at_15fps": 215.62,
+        "mp4_writer_fps": 285.2,
+        "mp4_test_bytes": 81434,
+        "process_rss_mb": 173.4
+      },
+      {
+        "width": 1920,
+        "height": 1080,
+        "frames": 60,
+        "motion_plus_jpeg_fps": 18.22,
+        "frame_p50_ms": 54.1,
+        "frame_p95_ms": 57.71,
+        "core_cpu_percent_estimate_at_15fps": 610.16,
+        "mp4_writer_fps": 113.56,
+        "mp4_test_bytes": 175484,
+        "process_rss_mb": 293.2
+      }
+    ]
+  },
+  "one_thread": {
+    "kind": "synthetic component benchmark; no live camera/browser/network",
+    "python": "3.11.9",
+    "logical_cpus": 12,
+    "resolutions": [
+      {
+        "width": 640,
+        "height": 480,
+        "frames": 60,
+        "motion_plus_jpeg_fps": 141.74,
+        "frame_p50_ms": 6.82,
+        "frame_p95_ms": 8.5,
+        "core_cpu_percent_estimate_at_15fps": 10.55,
+        "mp4_writer_fps": 489.11,
+        "mp4_test_bytes": 31934,
+        "process_rss_mb": 108.0
+      },
+      {
+        "width": 1280,
+        "height": 720,
+        "frames": 60,
+        "motion_plus_jpeg_fps": 49.35,
+        "frame_p50_ms": 20.28,
+        "frame_p95_ms": 21.82,
+        "core_cpu_percent_estimate_at_15fps": 29.69,
+        "mp4_writer_fps": 302.2,
+        "mp4_test_bytes": 81434,
+        "process_rss_mb": 170.8
+      },
+      {
+        "width": 1920,
+        "height": 1080,
+        "frames": 60,
+        "motion_plus_jpeg_fps": 18.44,
+        "frame_p50_ms": 49.12,
+        "frame_p95_ms": 85.87,
+        "core_cpu_percent_estimate_at_15fps": 79.3,
+        "mp4_writer_fps": 84.85,
+        "mp4_test_bytes": 175484,
+        "process_rss_mb": 289.3
+      }
+    ],
+    "opencv_threads": 1
+  }
+}

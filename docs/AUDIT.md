@@ -28,8 +28,10 @@ Audit baseline: 2a82a8a. Scope: application lifecycle, camera/motion/recording/s
 | Autostart disables auth | Preserve configured authentication |
 | Runtime database/logs/bytecode committed | Remove from current tracked tree and add ignores |
 
+## 0.3 follow-up fixes
+
+Independent camera workers replace the single active detector/recorder. Linux camera capture now uses the platform backend. Background alert delivery removes Telegram network latency from frame processing. Event writes are throttled, cooldown is based on elapsed time, and sensitivity direction matches the UI. File cleanup reconciles database metadata and removes thumbnails. Continuous videos rotate into bounded segments. Wizard, zones, schedules, optional local object filtering, review playback, diagnostics and opt-in update checks are implemented and tested.
+
 ## Remaining engineering work
 
-Analytics now uses grouped counts and a database SUM to avoid per-camera queries and loading every size row. Directory-size traversal is on demand. Telegram sending is synchronous and can block capture; move to a bounded retry queue for strict capture latency. Loop sleep adds processing time to configured FPS; measured acquisition FPS is not a strict real-time guarantee.
-
-Single active detector/recorder, camera index 0 discovery, legacy configuration fields, missing schema migration tooling, stale metadata after retention, process-global login lockout and lack of multi-user authorization remain documented limitations. There is no at-rest encryption, AI inference, pre-motion buffering, cloud storage, native mobile server or signed desktop release. Stop/start and shutdown races and physical camera codecs need device/soak testing. No claims of complete security or 24/7 production certification are made.
+Validate simultaneous physical cameras, long-running storage/reconnect/power-loss scenarios and model accuracy. Current optional inference runs in its camera worker and can reduce that feed's FPS. The preview player decodes JPEG frames at five FPS and is not full-rate video playback. No source audio is captured. Windows signing is prepared but no certificate exists. No at-rest encryption, multi-user roles, RTSP provisioning, cloud backup, native phone server or automatic software installation is provided. Codecs, drivers and device capacity require target-device testing.

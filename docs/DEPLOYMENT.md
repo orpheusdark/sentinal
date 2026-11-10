@@ -19,3 +19,7 @@ Stop Sentinel to finalize recordings, then back up the data directory, configura
 ## Packaging
 
 Native executables are built with PyInstaller on each target OS/architecture. Windows per-user installer and optional Inno Setup definition are in scripts/. GitHub Actions uploads build artifacts without publishing releases or embedding signing credentials. See [Packaging](PACKAGING.md) for commands and release limitations.
+
+## 0.3 operating checks
+
+Camera profiles are applied on restart. Verify host-local schedules and frame rates after OS timezone/driver changes. Use Diagnostics for per-camera frame age, errors, target/observed FPS and alert queue counters. Test retention with a disposable archive before production use. Automatic update notifications are opt-in and do not apply software updates. Windows distribution signing remains pending a certificate.

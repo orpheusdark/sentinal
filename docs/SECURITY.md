@@ -8,7 +8,7 @@ Sentinel is a local, single-administrator camera appliance. It is not a hardened
 
 - Random session secrets replace predictable defaults; cookies are HttpOnly/SameSite=Lax, and Secure with direct HTTPS.
 - A private password is required when enabling authentication. Werkzeug scrypt/pbkdf2 hashes and legacy plaintext credentials are supported.
-- Login redirects must remain relative local paths. Repeated login failures trigger a bounded-time lockout.
+- Login redirects must remain relative local paths. Repeated login failures trigger a bounded-time lockout. Playback blob images are allowed by the image policy while scripts remain same-origin.
 - System information, video and administrative APIs are private under session auth. Optional API keys cover reads as well as writes and use constant-time comparisons; no URL keys.
 - No permissive CORS. JSON writes require a custom request header; cross-origin writes are rejected.
 - CSP, frame denial, no-sniff, same-origin referrer policy and no-store responses reduce browser exposure. Dynamic archive/timeline text uses safe DOM text insertion.
@@ -24,3 +24,7 @@ Credentials, recordings and SQLite data are not encrypted at rest. Apply OS file
 Removing historical runtime files from the current tree does not erase Git history. If a real secret was ever committed, rotate it and coordinate a separate history-cleaning change. No history rewrite is performed by this update. Do not attach raw logs or camera images to public issues. Redact tokens, paths, usernames and private footage.
 
 Run `python -m pip_audit` before release. An advisory scan is a point-in-time dependency check, not proof of complete security. Report security issues privately to the repository owner rather than including exploitable details or secrets in a public issue.
+
+## New local services
+
+Camera discovery is bounded and private. Per-camera JSON is validated before persistence. ONNX paths are restricted to the private models directory; no remote model URLs are accepted. Diagnostics omit credentials, hostnames, IP addresses and paths. Automatic update checks are opt-in, contact only the public GitHub Releases API and never execute downloads. The bounded playback decoder cache is a preview service, not a public media server. Schedules use host-local time and must be verified after timezone/DST changes.

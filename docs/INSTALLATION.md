@@ -1,31 +1,25 @@
-# Installation
+# Install Sentinel — Windows and Linux
 
-## Windows app
+Download the packages from [GitHub Releases](https://github.com/orpheusdark/sentinal/releases). Choose the correct OS/architecture and verify the accompanying SHA256SUMS.txt.
 
-Run `Sentinel-Setup-Windows.exe`, choose **Install Sentinel**, then **Open Sentinel**. Installation is per-user, requires no Python and creates a Start menu shortcut. Close a running Sentinel instance before updating. The app is currently unsigned; signing is a release-maintainer task.
+## Windows x64
 
-For the portable package, extract the entire ZIP and open `Sentinel.exe`. Keep `_internal` beside the executable. In the launcher, click **Start Sentinel**. The browser opens when startup completes; **Stop Sentinel** flushes recordings and closes the server. Closing the launcher also stops the service.
+Run Sentinel-Setup-Windows.exe, choose Install Sentinel, then Open Sentinel. The per-user setup includes Python and creates a Start menu shortcut. Alternatively, extract the full portable archive and open Sentinel/Sentinel.exe; keep _internal beside it. Current preview packages are unsigned because no certificate has been configured.
 
-App binaries install to `%LOCALAPPDATA%\Programs\Sentinel`. Private settings, database, logs and recordings live separately under `%LOCALAPPDATA%\Sentinel`. Updates preserve that data. To remove the custom per-user installation, stop the app, remove its program directory and Start menu shortcut. Keep the data directory if recordings are needed. The optional Inno Setup installer supports normal Windows uninstallation.
+In the launcher choose Start Sentinel, then use Cameras to detect devices, preview framing and configure profiles. Save and restart to apply. The dashboard defaults to http://127.0.0.1:5000. Missing cameras do not prevent the dashboard opening. Stop Sentinel finalizes recordings. Closing the launcher stops the service.
 
-## Run from source
+Binaries install under LOCALAPPDATA/Programs/Sentinel; private settings, logs, SQLite and recordings live under LOCALAPPDATA/Sentinel. Updates preserve private data. Close the app before updating. The custom preview installer is removed by deleting its program directory and Start menu shortcut after stopping it; retain private data if required. The optional Inno Setup recipe provides standard Windows uninstall registration.
 
-Requires Python 3.11+, a modern browser and camera drivers. A camera is optional for viewing the dashboard. Install only on operating systems supported by the chosen Python/OpenCV wheels.
+## Linux x86-64
 
-```powershell
-git clone https://github.com/orpheusdark/sentinal.git
-cd sentinal
-python -m venv .venv
-.\.venv\Scripts\python -m pip install --upgrade pip setuptools
-.\.venv\Scripts\python -m pip install -r requirements.txt
-.\.venv\Scripts\python desktop.py
-```
+Extract Sentinel-Linux-x86_64.tar.gz and run ./Sentinel/Sentinel. Preserve executable permissions. The system may need Tk/OpenGL libraries supported by the bundled Python/OpenCV build. Data uses XDG_DATA_HOME/sentinel or ~/.local/share/sentinel. Camera drivers and device permissions are configured through normal OS tools by the user.
 
-Windows convenience launcher: `scripts/start-windows.bat`.
+## From source
 
-Linux: `sh scripts/start-unix.sh`, or create a virtual environment with `python3 -m venv .venv`, install requirements using `.venv/bin/python -m pip`, and run `.venv/bin/python desktop.py`. Linux may require the distribution's `python3-tk`, `python3-venv` and OpenCV GUI libraries. Headless operation uses `python app.py --config config/local.json` without the desktop launcher.
+Requires Python 3.11+, a modern browser and compatible camera drivers. Create a virtual environment, install requirements.txt, then run desktop.py with that environment's Python. Windows convenience launcher: scripts/start-windows.bat. Linux: sh scripts/start-unix.sh. For headless use run python app.py --config config/local.json after installing dependencies. The desktop --data-dir option selects another private data directory.
 
-The default dashboard is http://127.0.0.1:5000. First startup creates an empty database. If a camera is absent, the dashboard remains available and camera discovery retries every 30 seconds.
+## First-use checklist
 
-## Other devices
+Start with one camera at 720p/15 FPS. Verify a preview, motion-triggered recording, timeline/thumbnail/playback and an original download. Review the Diagnostics screen before adding feeds. Optional people/vehicle filtering is off by default; vehicle detection requires a local compatible model. Schedules use the host-local timezone. Changes require restart.
 
+Windows and Linux are the supported native targets. Phones/tablets can view a secured host in a browser; no native mobile camera-server app is included. Configure authentication and TLS before remote access; do not forward the default local HTTP port to the public Internet. See [Deployment](DEPLOYMENT.md), [Security](SECURITY.md), [Packaging](PACKAGING.md) and [Efficiency](EFFICIENCY.md).
