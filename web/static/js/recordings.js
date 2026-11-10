@@ -1,126 +1,56 @@
-// Recordings Page JavaScript
-
 class RecordingsPage {
     constructor() {
-        this.daysFilter = 7;
-        this.cameraFilter = '';
-        this.recordings = [];
-        
-        this.init();
+        this.offset = 0; this.limit = 30; this.request = 0;
+        for (const id of ['daysFilter', 'cameraFilter']) document.getElementById(id).addEventListener('change', () => {this.offset = 0; this.load();});
+        document.getElementById('refreshBtn').addEventListener('click', () => this.load());
+        document.getElementById('previousBtn').addEventListener('click', () => {this.offset = Math.max(0, this.offset - this.limit); this.load();});
+        document.getElementById('nextBtn').addEventListener('click', () => {this.offset += this.limit; this.load();});
+        this.load(); this.cameras();
     }
-
-    async init() {
-        console.log('Initializing recordings page...');
-        
-        // Setup event listeners
-        document.getElementById('daysFilter').addEventListener('change', (e) => {
-            this.daysFilter = parseInt(e.target.value);
-            this.loadRecordings();
-        });
-
-        document.getElementById('cameraFilter').addEventListener('change', (e) => {
-            this.cameraFilter = e.target.value;
-            this.loadRecordings();
-        });
-
-        document.getElementById('refreshBtn').addEventListener('click', () => {
-            this.loadRecordings();
-        });
-
-        // Load recordings
-        await this.loadRecordings();
-        
-        console.log('Recordings page ready');
-    }
-
-    async loadRecordings() {
+    async cameras() {
         try {
-            let url = `/api/recordings?days=${this.daysFilter}`;
-            if (this.cameraFilter) {
-                url += `&camera_id=${this.cameraFilter}`;
+            const response = await fetch('/api/cameras'); const result = await response.json();
+            if (!result.success) return;
+            for (const camera of result.data.cameras) {
+                const option = document.createElement('option'); option.value = camera.id;
+                option.textContent = `Camera ${camera.id}`; document.getElementById('cameraFilter').append(option);
             }
-
-            const response = await fetch(url);
-            const data = await response.json();
-
-            if (data.success) {
-                this.recordings = data.data.recordings;
-                this.displayRecordings();
-            }
-        } catch (error) {
-            console.error('Error loading recordings:', error);
-        }
+        } catch { /* Archive remains available if the camera manager is offline. */ }
     }
-
-    displayRecordings() {
-        const recordingsList = document.getElementById('recordingsList');
-
-        if (this.recordings.length === 0) {
-            recordingsList.innerHTML = '<div class="empty-state">No recordings found</div>';
-            return;
-        }
-
-        recordingsList.innerHTML = this.recordings.map(rec => this.formatRecordingCard(rec)).join('');
-
-        // Add download event listeners
-        document.querySelectorAll('.download-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const recordingId = e.target.dataset.id;
-                this.downloadRecording(recordingId);
-            });
-        });
-    }
-
-    formatRecordingCard(recording) {
-        const startTime = new Date(recording.start_time).toLocaleString();
-        const endTime = recording.end_time ? new Date(recording.end_time).toLocaleString() : 'N/A';
-        const duration = recording.duration_seconds ? recording.duration_seconds.toFixed(1) + ' s' : 'N/A';
-        const fileSize = recording.file_size_bytes ? 
-            (recording.file_size_bytes / (1024 * 1024)).toFixed(1) + ' MB' : 'N/A';
-
-        return `
-            <div class="recording-card">
-                <div class="recording-header">
-                    <div class="recording-title">Camera ${recording.camera_id}</div>
-                    <div class="recording-meta">${startTime}</div>
-                </div>
-                <div class="recording-body">
-                    <div class="recording-detail">
-                        <span class="recording-label">Duration:</span>
-                        <span class="recording-value">${duration}</span>
-                    </div>
-                    <div class="recording-detail">
-                        <span class="recording-label">File Size:</span>
-                        <span class="recording-value">${fileSize}</span>
-                    </div>
-                    <div class="recording-detail">
-                        <span class="recording-label">Quality:</span>
-                        <span class="recording-value">${recording.quality || 'medium'}</span>
-                    </div>
-                    <div class="recording-detail">
-                        <span class="recording-label">End Time:</span>
-                        <span class="recording-value">${endTime}</span>
-                    </div>
-                </div>
-                <div class="recording-actions">
-                    <button class="btn btn-primary btn-sm download-btn" data-id="${recording.id}">Download</button>
-                    <button class="btn btn-secondary btn-sm delete-btn" data-id="${recording.id}">Delete</button>
-                </div>
-            </div>
-        `;
-    }
-
-    async downloadRecording(recordingId) {
+    async load() {
+        const id = ++this.request;
+        const list = document.getElementById('recordingsList');
+        list.textContent = 'Loading archive…';
         try {
-            window.location.href = `/api/recordings/${recordingId}/download`;
-        } catch (error) {
-            console.error('Error downloading recording:', error);
-            alert('Failed to download recording');
+            const params = new URLSearchParams({days: document.getElementById('daysFilter').value, limit: this.limit, offset: this.offset});
+            const camera = document.getElementById('cameraFilter').value;
+            if (camera) params.set('camera_id', camera);
+            const response = await fetch('/api/recordings?' + params, {signal: AbortSignal.timeout(8000)});
+            const result = await response.json();
+            if (!response.ok || !result.success) throw new Error();
+            if (id !== this.request) return;
+            list.replaceChildren();
+            const data = result.data;
+            for (const rec of data.recordings) {
+                const card = document.createElement('article'); card.className = 'recording-card';
+                const header = document.createElement('div'); header.className = 'recording-header';
+                const title = document.createElement('h2'); title.className = 'recording-title'; title.textContent = `Camera ${rec.camera_id}`;
+                const time = document.createElement('p'); time.className = 'recording-meta'; time.textContent = new Date(rec.start_time + 'Z').toLocaleString();
+                header.append(title, time);
+                const body = document.createElement('div'); body.className = 'recording-body';
+                body.textContent = `${(rec.duration_seconds ?? 0).toFixed(1)} seconds · ${((rec.file_size_bytes ?? 0) / 1048576).toFixed(1)} MB`;
+                const actions = document.createElement('div'); actions.className = 'recording-actions';
+                const download = document.createElement('a'); download.className = 'btn btn-primary';
+                download.href = `/api/recordings/${Number(rec.id)}/download`; download.textContent = 'Download recording';
+                actions.append(download); card.append(header, body, actions); list.append(card);
+            }
+            if (!data.recordings.length) {const empty = document.createElement('div'); empty.className = 'empty-state'; empty.textContent = 'No recordings in this time period.'; list.append(empty);}
+            document.getElementById('previousBtn').disabled = this.offset === 0;
+            document.getElementById('nextBtn').disabled = this.offset + data.count >= data.total;
+            document.getElementById('pageStatus').textContent = `${data.total ? this.offset + 1 : 0}–${this.offset + data.count} of ${data.total}`;
+        } catch {
+            if (id === this.request) {list.textContent = 'Archive unavailable. Check your connection and refresh.'; document.getElementById('nextBtn').disabled = true;}
         }
     }
 }
-
-// Initialize when DOM is ready
-document.addEventListener('DOMContentLoaded', () => {
-    new RecordingsPage();
-});
+document.addEventListener('DOMContentLoaded', () => new RecordingsPage());

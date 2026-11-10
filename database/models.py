@@ -9,9 +9,7 @@ from sqlalchemy import (
     create_engine, Column, Integer, String, Float, DateTime,
     Boolean, Text, ForeignKey, Index, event, text, inspect
 )
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, Session
-from sqlalchemy.pool import StaticPool
+from sqlalchemy.orm import declarative_base, sessionmaker, Session
 from pathlib import Path
 from datetime import datetime
 from typing import Optional
@@ -76,7 +74,7 @@ class MotionEvent(Base):
     false_positive = Column(Boolean, default=False)
     
     __table_args__ = (
-        Index('idx_camera_start_time', 'camera_id', 'start_time'),
+        Index('idx_motion_camera_start_time', 'camera_id', 'start_time'),
     )
 
 
@@ -105,7 +103,7 @@ class Recording(Base):
     deleted_at = Column(DateTime, nullable=True)
     
     __table_args__ = (
-        Index('idx_camera_start_time', 'camera_id', 'start_time'),
+        Index('idx_recording_camera_start_time', 'camera_id', 'start_time'),
         Index('idx_deleted_at', 'deleted_at'),
     )
 
@@ -128,7 +126,7 @@ class SystemMetric(Base):
     disk_percent = Column(Float, nullable=False)
     
     __table_args__ = (
-        Index('idx_timestamp', 'timestamp'),
+        Index('idx_metric_timestamp', 'timestamp'),
     )
 
 
@@ -145,7 +143,7 @@ class ApplicationLog(Base):
     module = Column(String(255), nullable=False)
     
     __table_args__ = (
-        Index('idx_timestamp', 'timestamp'),
+        Index('idx_log_timestamp', 'timestamp'),
         Index('idx_level', 'level'),
     )
 
@@ -202,7 +200,6 @@ class DatabaseManager:
         self.engine = create_engine(
             db_url,
             echo=echo,
-            poolclass=StaticPool,
             connect_args={"check_same_thread": False, "timeout": 30},
         )
         
@@ -270,7 +267,7 @@ class DatabaseManager:
         """Check database connectivity."""
         try:
             with self.get_session() as session:
-                session.execute("SELECT 1")
+                session.execute(text("SELECT 1"))
                 return True
         except Exception as e:
             logger.error(f"Database health check failed: {e}")

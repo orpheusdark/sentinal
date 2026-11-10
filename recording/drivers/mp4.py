@@ -104,7 +104,7 @@ class MP4RecorderDriver(RecorderDriver):
             self.start_frame_time = time.time()
             
             # Create video writer
-            if self.codec == 'h264':
+            if self.codec in ('h264', 'mp4v'):
                 fourcc = self.CODEC_H264
             else:
                 fourcc = self.CODEC_MJPEG

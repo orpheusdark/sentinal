@@ -6,7 +6,7 @@ $taskPath = "C:\Users\niran\Documents\GitHub\Sentinal\start_sentinel.bat"
 $workingDir = "C:\Users\niran\Documents\GitHub\Sentinal"
 
 # Create task to run at startup
-$action = New-ScheduledTaskAction -Execute "cmd.exe" -Argument "/c `"$taskPath --no-auth`"" -WorkingDirectory $workingDir
+$action = New-ScheduledTaskAction -Execute "cmd.exe" -Argument "/c `"$taskPath`"" -WorkingDirectory $workingDir
 $trigger = New-ScheduledTaskTrigger -AtStartup
 $principal = New-ScheduledTaskPrincipal -UserId "$env:USERNAME" -RunLevel Highest
 

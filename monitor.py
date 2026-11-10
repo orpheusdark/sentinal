@@ -212,7 +212,7 @@ class Monitor:
 
     def _http_get(self, url: str, timeout: int = 8) -> Dict[str, Any]:
         try:
-            context = ssl._create_unverified_context() if url.startswith("https://") else None
+            context = ssl.create_default_context() if url.startswith("https://") else None
             req = request.Request(url, method="GET")
             with request.urlopen(req, timeout=timeout, context=context) as resp:
                 body = resp.read().decode("utf-8")

@@ -40,6 +40,18 @@ class StorageManager:
         """
         self.config = config or get_config().storage
         self.lock = threading.RLock()
+        self.recordings_path = Path(self.config.recordings_dir).resolve()
+        self.recordings_path.mkdir(parents=True, exist_ok=True)
+        self.active_recording_path = lambda: None
+        self._initialize_thresholds()
+
+    def _can_delete(self, path):
+        resolved = Path(path).resolve()
+        active = self.active_recording_path()
+        return (not Path(path).is_symlink() and resolved.is_relative_to(self.recordings_path)
+                and (not active or resolved != Path(active).resolve()))
+
+    def _initialize_thresholds(self):
         
         # Retention policy (days)
         self.retention_days = self.config.retention_days if hasattr(self.config, 'retention_days') else 30
@@ -64,7 +76,7 @@ class StorageManager:
             Dictionary with disk info
         """
         with self.lock:
-            disk_info = SystemInfo.get_disk_info()
+            disk_info = SystemInfo.get_disk_info(str(self.recordings_path))
             
             used_percent = disk_info['used_percent']
             status = 'healthy'
@@ -93,7 +105,7 @@ class StorageManager:
         """
         with self.lock:
             try:
-                recordings_path = PathManager.get_recordings_path()
+                recordings_path = str(self.recordings_path)
                 
                 if not os.path.exists(recordings_path):
                     return {
@@ -113,7 +125,7 @@ class StorageManager:
                 # Walk through recording directory structure (YYYY/MM/DD/camera_id/)
                 for root, dirs, files in os.walk(recordings_path):
                     for file in files:
-                        if not file.endswith('.mp4'):
+                        if not file.endswith('.mp4') or Path(root, file).is_symlink():
                             continue
                         
                         file_path = os.path.join(root, file)
@@ -123,6 +135,8 @@ class StorageManager:
                             mod_time = datetime.utcfromtimestamp(os.path.getmtime(file_path))
                             
                             if mod_time < cutoff_date:
+                                if not self._can_delete(file_path):
+                                    continue
                                 # Delete old file
                                 file_size = os.path.getsize(file_path)
                                 os.remove(file_path)
@@ -138,7 +152,7 @@ class StorageManager:
                 
                 logger.info(
                     f"Retention policy cleanup complete: "
-                    f"deleted {deleted_count} files, freed {TimeUtils.format_size(freed_bytes)}"
+                    f"deleted {deleted_count} files, freed {TimeUtils.format_file_size(freed_bytes)}"
                 )
                 
                 return {
@@ -174,7 +188,7 @@ class StorageManager:
             try:
                 logger.warning(f"Starting emergency cleanup to reach {target_percent}% free space")
                 
-                disk_info = SystemInfo.get_disk_info()
+                disk_info = SystemInfo.get_disk_info(str(self.recordings_path))
                 current_used_percent = disk_info['used_percent']
                 
                 if current_used_percent <= (100 - target_percent):
@@ -187,7 +201,7 @@ class StorageManager:
                     }
                 
                 # Get all video files sorted by modification time (oldest first)
-                recordings_path = PathManager.get_recordings_path()
+                recordings_path = str(self.recordings_path)
                 video_files = self._get_video_files_by_age(recordings_path)
                 
                 if not video_files:
@@ -204,13 +218,15 @@ class StorageManager:
                 # Delete oldest files until target reached
                 for file_path, file_size in video_files:
                     try:
+                        if not self._can_delete(file_path):
+                            continue
                         os.remove(file_path)
                         deleted_count += 1
                         freed_bytes += file_size
                         logger.debug(f"Emergency deleted: {file_path}")
                         
                         # Check if we've freed enough space
-                        disk_info = SystemInfo.get_disk_info()
+                        disk_info = SystemInfo.get_disk_info(str(self.recordings_path))
                         if disk_info['used_percent'] <= (100 - target_percent):
                             break
                     
@@ -221,11 +237,11 @@ class StorageManager:
                 self._cleanup_empty_dirs(recordings_path)
                 
                 # Get final disk status
-                disk_info = SystemInfo.get_disk_info()
+                disk_info = SystemInfo.get_disk_info(str(self.recordings_path))
                 
                 logger.warning(
                     f"Emergency cleanup complete: "
-                    f"deleted {deleted_count} files, freed {TimeUtils.format_size(freed_bytes)}, "
+                    f"deleted {deleted_count} files, freed {TimeUtils.format_file_size(freed_bytes)}, "
                     f"disk now at {disk_info['used_percent']}% usage"
                 )
                 
@@ -259,7 +275,7 @@ class StorageManager:
         try:
             for root, dirs, files in os.walk(recordings_path):
                 for file in files:
-                    if file.endswith('.mp4'):
+                    if file.endswith('.mp4') and not Path(root, file).is_symlink():
                         file_path = os.path.join(root, file)
                         try:
                             file_size = os.path.getsize(file_path)
@@ -308,7 +324,7 @@ class StorageManager:
         """
         with self.lock:
             try:
-                recordings_path = PathManager.get_recordings_path()
+                recordings_path = str(self.recordings_path)
                 
                 # Calculate recordings directory size
                 total_recordings_bytes = 0
@@ -318,7 +334,7 @@ class StorageManager:
                 
                 for root, dirs, files in os.walk(recordings_path):
                     for file in files:
-                        if file.endswith('.mp4'):
+                        if file.endswith('.mp4') and not Path(root, file).is_symlink():
                             file_path = os.path.join(root, file)
                             try:
                                 file_size = os.path.getsize(file_path)
@@ -335,7 +351,7 @@ class StorageManager:
                             except Exception as e:
                                 logger.debug(f"Failed to stat {file_path}: {e}")
                 
-                disk_info = SystemInfo.get_disk_info()
+                disk_info = SystemInfo.get_disk_info(str(self.recordings_path))
                 
                 return {
                     'total_recordings_bytes': total_recordings_bytes,

@@ -77,6 +77,8 @@ class MotionDetector:
         result = MotionResult()
         result.frame_timestamp = datetime.utcnow()
         result.frame_shape = frame.shape
+        if not self.config.enabled:
+            return result
         
         try:
             self.frame_count += 1

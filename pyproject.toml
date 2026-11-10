@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=75", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sentinal-surveillance"
+version = "0.2.0"
+description = "Local camera surveillance and monitoring dashboard"
+requires-python = ">=3.11"
+dynamic = ["dependencies"]
+
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}
+
+[tool.setuptools]
+py-modules = ["app", "monitor", "watchdog"]
+
+[tool.setuptools.packages.find]
+include = ["alerts*", "camera*", "config*", "database*", "motion*", "recording*", "storage*", "utils*", "web*"]
+exclude = ["tests*"]
+
+[tool.setuptools.package-data]
+web = ["templates/*.html", "static/css/*.css", "static/js/*.js"]
+config = ["settings.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--import-mode=importlib"
+
+[tool.ruff.lint]
+select = ["E9", "F63", "F7", "F82"]

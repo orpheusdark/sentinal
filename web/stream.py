@@ -36,6 +36,8 @@ class StreamManager:
             quality: JPEG quality (1-100)
             target_fps: Target FPS for streaming
         """
+        if not 1 <= quality <= 100 or not 1 <= target_fps <= 60:
+            raise ValueError('Invalid stream quality or FPS')
         self.quality = quality
         self.target_fps = target_fps
         self.frame_interval = 1.0 / target_fps
@@ -46,6 +48,7 @@ class StreamManager:
         
         # Latest frame
         self.current_frame = None
+        self._encoded_frame = None
         self.current_timestamp = None
         self.frame_lock = threading.RLock()
         
@@ -86,7 +89,8 @@ class StreamManager:
             frame: BGR numpy array to stream
         """
         with self.frame_lock:
-            self.current_frame = frame
+            self.current_frame = frame.copy()
+            self._encoded_frame = None
             self.current_timestamp = datetime.utcnow()
     
     def get_frame_as_jpeg(self) -> Optional[str]:
@@ -99,6 +103,8 @@ class StreamManager:
         with self.frame_lock:
             if self.current_frame is None:
                 return None
+            if self._encoded_frame is not None:
+                return self._encoded_frame
             
             try:
                 # Encode frame as JPEG
@@ -111,6 +117,7 @@ class StreamManager:
                 
                 # Convert to base64
                 jpeg_base64 = base64.b64encode(jpeg_data).decode('utf-8')
+                self._encoded_frame = jpeg_base64
                 return jpeg_base64
             
             except Exception as e:
@@ -145,7 +152,9 @@ class StreamManager:
             quality: JPEG quality (1-100)
         """
         if 1 <= quality <= 100:
-            self.quality = quality
+            with self.frame_lock:
+                self.quality = quality
+                self._encoded_frame = None
             logger.info(f"Stream quality changed to {quality}")
         else:
             logger.warning(f"Invalid quality value: {quality}")

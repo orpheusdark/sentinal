@@ -6,7 +6,10 @@ Responsibility: Web interface for surveillance system monitoring and control.
 
 import hmac
 from flask import Flask, render_template, request, jsonify, send_file, redirect, url_for, session
-from flask_cors import CORS
+import secrets
+from urllib.parse import urlsplit
+from flask import g
+from werkzeug.security import check_password_hash
 from datetime import datetime, timedelta
 import os
 import logging
@@ -33,7 +36,7 @@ class WebServer:
     - Configuration management
     """
     
-    def __init__(self, host: str = '0.0.0.0', port: int = 5000, debug: bool = False):
+    def __init__(self, host: str = '127.0.0.1', port: int = 5000, debug: bool = False):
         """
         Initialize web server.
         
@@ -54,6 +57,9 @@ class WebServer:
         self.lockout_duration_minutes = getattr(self.config.security, 'lockout_duration_minutes', 15)
         self.require_api_key = getattr(self.config.security, 'require_api_key', False)
         self.api_key = getattr(self.config.security, 'api_key', None)
+        if host not in ('127.0.0.1', 'localhost', '::1') and not self.auth_enabled:
+            raise ValueError('Network access requires dashboard authentication')
+        self.http_server = None
         self.failed_login_attempts = 0
         self.lockout_until = None
         
@@ -64,11 +70,15 @@ class WebServer:
 
         self.app = Flask(__name__, template_folder=template_dir, static_folder=static_dir)
         self.app.config['JSON_SORT_KEYS'] = False
-        self.app.secret_key = getattr(self.config.security, 'session_secret', None) or f"{self.config.app_name}:{self.config.version}"
+        self.app.secret_key = getattr(self.config.security, 'session_secret', None) or secrets.token_hex(32)
         self.app.permanent_session_lifetime = timedelta(minutes=self.session_timeout_minutes)
         
         # Enable CORS
-        CORS(self.app)
+        self.app.config.update(SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE='Lax',
+                               SESSION_COOKIE_SECURE=self.config.web.use_https,
+                               MAX_CONTENT_LENGTH=16 * 1024)
+        self.app.teardown_request(self._close_request_session)
+        self.app.after_request(self._security_headers)
         
         # Application context
         self.app_context = None  # Will be set by main application
@@ -80,6 +90,24 @@ class WebServer:
         
         logger.info(f"Web server initialized (http://{host}:{port})")
     
+    def _db_session(self):
+        if 'db_session' not in g:
+            g.db_session = self.app_context.db.get_session()
+        return g.db_session
+
+    def _close_request_session(self, error=None):
+        db_session = g.pop('db_session', None)
+        if db_session is not None:
+            db_session.close()
+
+    def _security_headers(self, response):
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        response.headers['X-Frame-Options'] = 'DENY'
+        response.headers['Referrer-Policy'] = 'same-origin'
+        response.headers['Cache-Control'] = 'no-store'
+        response.headers['Content-Security-Policy'] = "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; frame-ancestors 'none'; form-action 'self'; base-uri 'self'"
+        return response
+
     def set_app_context(self, app_context):
         """Set application context for access to managers."""
         self.app_context = app_context
@@ -105,8 +133,7 @@ class WebServer:
             '/login',
             '/logout',
             '/api/health',
-            '/api/system/health',
-            '/api/system/info',
+
         }
         return path in public_paths or path.startswith('/static/')
 
@@ -131,17 +158,23 @@ class WebServer:
 
     def _enforce_api_key(self):
         """Protect mutating API routes when API key enforcement is enabled."""
-        if not self.require_api_key or not self.api_key:
+        if request.method not in ('GET', 'HEAD', 'OPTIONS'):
+            origin = request.headers.get('Origin')
+            if origin and origin != request.host_url.rstrip('/'):
+                return jsonify(success=False, error='Cross-origin writes rejected'), 403
+            if request.is_json and request.headers.get('X-Sentinel-Request') != 'dashboard':
+                return jsonify(success=False, error='Missing request header'), 403
+        if not self.require_api_key:
             return None
 
         if not request.path.startswith('/api/'):
             return None
 
-        if request.method in ('GET', 'HEAD', 'OPTIONS'):
+        if request.path == '/api/health' or self._is_authenticated() and self.auth_enabled:
             return None
 
-        provided_key = request.headers.get('X-API-Key') or request.args.get('api_key')
-        if provided_key != self.api_key:
+        provided_key = request.headers.get('X-API-Key', '')
+        if not self.api_key or not hmac.compare_digest(provided_key.encode(), self.api_key.encode()):
             return jsonify({
                 'success': False,
                 'error': 'API key required'
@@ -151,7 +184,7 @@ class WebServer:
 
     def _verify_credentials(self, username: str, password: str) -> bool:
         """Validate submitted credentials using constant-time comparison."""
-        return hmac.compare_digest(username or '', self.admin_username) and hmac.compare_digest(password or '', self.admin_password)
+        return hmac.compare_digest((username or '').encode(), self.admin_username.encode()) and (check_password_hash(self.admin_password, password) if self.admin_password.startswith(('scrypt:', 'pbkdf2:')) else hmac.compare_digest((password or '').encode(), self.admin_password.encode()))
 
     def _is_locked_out(self) -> bool:
         """Check whether login attempts are temporarily locked out."""
@@ -179,6 +212,9 @@ class WebServer:
 
             error = None
             next_url = request.values.get('next') or url_for('index')
+            target = urlsplit(next_url)
+            if target.scheme or target.netloc or not next_url.startswith('/') or next_url.startswith('//') or '\\' in next_url:
+                next_url = url_for('index')
 
             if request.method == 'POST':
                 if self._is_locked_out():
@@ -248,12 +284,12 @@ class WebServer:
                 import shutil
                 
                 mem = psutil.virtual_memory()
-                disk = shutil.disk_usage('/')
+                disk = shutil.disk_usage(Path(self.config.storage.recordings_dir).resolve().anchor)
                 
                 return jsonify({
                     'success': True,
                     'data': {
-                        'cpu_percent': psutil.cpu_percent(interval=0.1),
+                        'cpu_percent': psutil.cpu_percent(interval=None),
                         'memory_percent': mem.percent,
                         'memory_used_mb': mem.used / (1024**2),
                         'memory_available_mb': mem.available / (1024**2),
@@ -267,7 +303,7 @@ class WebServer:
                 logger.error(f"Error getting metrics: {e}")
                 return jsonify({
                     'success': False,
-                    'error': str(e)
+                    'error': 'Request failed; check server logs'
                 }), 500
         
         # API: System Info
@@ -285,7 +321,7 @@ class WebServer:
                 logger.error(f"Error getting system info: {e}")
                 return jsonify({
                     'success': False,
-                    'error': str(e)
+                    'error': 'Request failed; check server logs'
                 }), 500
 
         @self.app.route('/api/auth/status')
@@ -332,7 +368,7 @@ class WebServer:
                 logger.error(f"Error getting health status: {e}")
                 return jsonify({
                     'success': False,
-                    'error': str(e)
+                    'error': 'Request failed; check server logs'
                 }), 500
         
         # API: Disk Usage
@@ -357,7 +393,7 @@ class WebServer:
                 logger.error(f"Error getting disk info: {e}")
                 return jsonify({
                     'success': False,
-                    'error': str(e)
+                    'error': 'Request failed; check server logs'
                 }), 500
         
         # API: Recording Status
@@ -386,7 +422,7 @@ class WebServer:
                 logger.error(f"Error getting recording status: {e}")
                 return jsonify({
                     'success': False,
-                    'error': str(e)
+                    'error': 'Request failed; check server logs'
                 }), 500
         
         # API: Recording List
@@ -398,15 +434,17 @@ class WebServer:
                     return jsonify({'success': False, 'error': 'Database not available'}), 500
                 
                 # Query recordings from database
-                session = self.app_context.db.get_session()
+                session = self._db_session()
                 from database.models import Recording
                 
                 # Get query parameters
                 camera_id = request.args.get('camera_id', type=int)
-                days = request.args.get('days', default=7, type=int)
+                days = max(1, min(365, request.args.get('days', default=7, type=int)))
+                limit = max(1, min(500, request.args.get('limit', default=100, type=int)))
+                offset = max(0, request.args.get('offset', default=0, type=int))
                 
                 # Build query
-                query = session.query(Recording)
+                query = session.query(Recording).filter(Recording.deleted_at.is_(None))
                 if camera_id:
                     query = query.filter(Recording.camera_id == camera_id)
                 
@@ -415,7 +453,8 @@ class WebServer:
                 query = query.filter(Recording.start_time >= cutoff_date)
                 
                 # Order by date
-                recordings = query.order_by(Recording.start_time.desc()).all()
+                total = query.count()
+                recordings = query.order_by(Recording.start_time.desc(), Recording.id.desc()).offset(offset).limit(limit).all()
                 
                 # Convert to dict
                 recording_list = []
@@ -428,7 +467,7 @@ class WebServer:
                         'end_time': rec.end_time.isoformat() if rec.end_time else None,
                         'duration_seconds': rec.duration_seconds,
                         'file_size_bytes': rec.file_size_bytes,
-                        'quality': rec.quality,
+                        'quality': None,
                     })
                 
                 return jsonify({
@@ -436,13 +475,14 @@ class WebServer:
                     'data': {
                         'recordings': recording_list,
                         'count': len(recording_list),
+                        'total': total, 'limit': limit, 'offset': offset,
                     }
                 })
             except Exception as e:
                 logger.error(f"Error getting recordings: {e}")
                 return jsonify({
                     'success': False,
-                    'error': str(e)
+                    'error': 'Request failed; check server logs'
                 }), 500
         
         # API: Motion Events
@@ -453,12 +493,12 @@ class WebServer:
                 if not self.app_context or not self.app_context.db:
                     return jsonify({'success': False, 'error': 'Database not available'}), 500
                 
-                session = self.app_context.db.get_session()
+                session = self._db_session()
                 from database.models import MotionEvent
                 
                 # Get query parameters
                 camera_id = request.args.get('camera_id', type=int)
-                hours = request.args.get('hours', default=24, type=int)
+                hours = max(1, min(8760, request.args.get('hours', default=24, type=int)))
                 
                 # Build query
                 query = session.query(MotionEvent)
@@ -470,6 +510,7 @@ class WebServer:
                 query = query.filter(MotionEvent.start_time >= cutoff_time)
                 
                 # Order by date
+                total = query.count()
                 events = query.order_by(MotionEvent.start_time.desc()).limit(100).all()
                 
                 # Convert to dict
@@ -493,14 +534,14 @@ class WebServer:
                     'success': True,
                     'data': {
                         'events': event_list,
-                        'count': len(event_list),
+                        'count': len(event_list), 'total': total,
                     }
                 })
             except Exception as e:
                 logger.error(f"Error getting motion events: {e}")
                 return jsonify({
                     'success': False,
-                    'error': str(e)
+                    'error': 'Request failed; check server logs'
                 }), 500
         
         # API: Camera Status
@@ -531,7 +572,7 @@ class WebServer:
                 logger.error(f"Error getting cameras: {e}")
                 return jsonify({
                     'success': False,
-                    'error': str(e)
+                    'error': 'Request failed; check server logs'
                 }), 500
 
         @self.app.route('/api/analytics')
@@ -541,7 +582,7 @@ class WebServer:
                 if not self.app_context or not self.app_context.db:
                     return jsonify({'success': False, 'error': 'Database not available'}), 500
 
-                session = self.app_context.db.get_session()
+                session = self._db_session()
                 from database.models import Camera, Recording, MotionEvent
 
                 camera_count = session.query(Camera).count()
@@ -590,10 +631,20 @@ class WebServer:
                 logger.error(f"Error getting analytics: {e}")
                 return jsonify({
                     'success': False,
-                    'error': str(e)
+                    'error': 'Request failed; check server logs'
                 }), 500
         
         # API: Configuration
+        @self.app.route('/api/config', methods=['PUT'])
+        def api_config_update():
+            from config.settings import save_public_settings
+            try:
+                save_public_settings(request.get_json())
+                return jsonify(success=True, restart_required=True,
+                               message='Settings saved. Restart Sentinel to apply.')
+            except (TypeError, ValueError) as error:
+                return jsonify(success=False, error=str(error)), 400
+
         @self.app.route('/api/config')
         def api_config():
             """Get current configuration."""
@@ -604,28 +655,14 @@ class WebServer:
                     'data': {
                         'app_name': config.app_name,
                         'version': config.version,
-                        'camera': {
-                            'fps': config.camera.fps,
-                            'resolution': config.camera.resolution,
-                        },
-                        'motion': {
-                            'sensitivity': config.motion.sensitivity,
-                            'min_contour_area': config.motion.min_contour_area,
-                        },
-                        'recording': {
-                            'enabled': config.recording.enabled,
-                            'quality': config.recording.quality,
-                        },
-                        'storage': {
-                            'retention_days': config.storage.retention_days,
-                        }
+                        **{key: config.to_dict()[key] for key in ('camera', 'motion', 'recording', 'storage')},
                     }
                 })
             except Exception as e:
                 logger.error(f"Error getting config: {e}")
                 return jsonify({
                     'success': False,
-                    'error': str(e)
+                    'error': 'Request failed; check server logs'
                 }), 500
         
         # API: Recording Download
@@ -636,27 +673,31 @@ class WebServer:
                 if not self.app_context or not self.app_context.db:
                     return jsonify({'success': False, 'error': 'Database not available'}), 500
                 
-                session = self.app_context.db.get_session()
+                session = self._db_session()
                 from database.models import Recording
                 
-                recording = session.query(Recording).filter(Recording.id == recording_id).first()
+                recording = session.query(Recording).filter(Recording.id == recording_id, Recording.deleted_at.is_(None)).first()
                 if not recording:
                     return jsonify({'success': False, 'error': 'Recording not found'}), 404
                 
-                if not os.path.exists(recording.filepath):
+                path = Path(recording.filepath).resolve()
+                base = Path(self.config.storage.recordings_dir).resolve()
+                if not path.is_relative_to(base):
+                    return jsonify(success=False, error='Recording path is outside storage'), 403
+                if not path.is_file():
                     return jsonify({'success': False, 'error': 'Video file not found'}), 404
                 
                 # Stream file for download
                 return send_file(
-                    recording.filepath,
+                    str(path),
                     as_attachment=True,
-                    download_name=os.path.basename(recording.video_path)
+                    download_name=path.name
                 )
             except Exception as e:
                 logger.error(f"Error downloading recording: {e}")
                 return jsonify({
                     'success': False,
-                    'error': str(e)
+                    'error': 'Request failed; check server logs'
                 }), 500
         
         # API: Live Frame Stream
@@ -686,7 +727,7 @@ class WebServer:
                 logger.error(f"Error getting stream frame: {e}")
                 return jsonify({
                     'success': False,
-                    'error': str(e)
+                    'error': 'Request failed; check server logs'
                 }), 500
         
         # Health check endpoint
@@ -724,11 +765,12 @@ class WebServer:
         """
         scheme = 'https' if ssl_context else 'http'
         logger.info(f"Starting web server on {scheme}://{self.host}:{self.port}")
-        self.app.run(
-            host=self.host,
-            port=self.port,
-            debug=self.debug,
-            threaded=threaded,
-            use_reloader=False,
-            ssl_context=ssl_context
-        )
+        from werkzeug.serving import make_server
+        self.http_server = make_server(self.host, self.port, self.app,
+                                       threaded=threaded, ssl_context=ssl_context)
+        self.http_server.serve_forever()
+
+    def stop(self):
+        if self.http_server is not None:
+            self.http_server.shutdown()
+            self.http_server.server_close()

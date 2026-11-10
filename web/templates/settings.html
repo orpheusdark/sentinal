@@ -9,25 +9,21 @@
 <body>
     <div class="container">
         <!-- Header -->
+        <a class="skip-link" href="#main">Skip to content</a>
         <header class="header">
-            <div class="header-content">
-                <h1>{{ app_name }}</h1>
-                <p class="version">v{{ version }}</p>
-                <nav class="nav">
-                    <a href="/" class="nav-link">Dashboard</a>
-                    <a href="/recordings" class="nav-link">Recordings</a>
-                    <a href="/settings" class="nav-link active">Settings</a>
-                    {% if authenticated %}
-                    <a href="/logout" class="nav-link">Logout{% if username %} ({{ username }}){% endif %}</a>
-                    {% else %}
-                    <a href="/login" class="nav-link">Login</a>
-                    {% endif %}
-                </nav>
-            </div>
+          <a class="brand" href="/" aria-label="Sentinel dashboard"><span class="brand-icon">S</span><span>SENTINEL<small>LOCAL SURVEILLANCE NETWORK</small></span></a>
+          <nav class="nav" aria-label="Main navigation">
+          {% for href, label in [('/', 'Overview'), ('/recordings', 'Recordings'), ('/settings', 'Settings')] %}
+          <a href="{{ href }}" class="nav-link{% if request.path == href %} active{% endif %}" {% if request.path == href %}aria-current="page"{% endif %}>{{ label }}</a>
+          {% endfor %}
+          {% if auth_enabled %}<a href="/logout" class="nav-link">Sign out</a>{% endif %}
+          </nav>
+          <div class="network-tag">PRIVATE / LOCAL</div>
         </header>
 
         <!-- Main Content -->
-        <main class="main-content">
+        <main id="main" class="main-content">
+          <div class="page-heading"><div><p class="eyebrow">SENTINEL / CONTROL CENTER</p><h1>System settings</h1><p>Configure your local surveillance system.</p></div><span class="node-label">NODE / 01</span></div>
             <!-- Camera Settings -->
             <section class="settings-section">
                 <div class="section-header">
@@ -131,14 +127,12 @@
             <section class="actions-section">
                 <button id="saveBtn" class="btn btn-primary btn-lg">Save Settings</button>
                 <button id="restoreBtn" class="btn btn-secondary btn-lg">Restore Defaults</button>
-                <div id="message" class="message"></div>
+                <div id="message" class="message" role="status" aria-live="polite"></div>
             </section>
         </main>
 
         <!-- Footer -->
-        <footer class="footer">
-            <p>&copy; 2026 Project Sentinel. Surveillance system powered by local inference.</p>
-        </footer>
+        <footer class="footer"><span>SENTINEL / LOCAL FIRST</span><span>Video stays on this device · v{{ version }}</span></footer>
     </div>
 
     <script src="{{ url_for('static', filename='js/settings.js') }}"></script>

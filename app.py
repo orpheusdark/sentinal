@@ -116,6 +116,7 @@ class Application:
             if self.no_auth:
                 self.context.config.security.enable_auth = False
                 self.context.config.security.require_api_key = False
+                self.context.config.web.host = '127.0.0.1'
                 self.logger.info("Headless mode enabled: dashboard authentication disabled for unattended startup")
             
             # Step 3: Initialize path manager
@@ -130,8 +131,7 @@ class Application:
             # Step 5: Initialize camera manager
             self.context.camera_manager = CameraManager(self.context.config.camera)
             if not self.context.camera_manager.initialize():
-                self.logger.error("Failed to initialize camera manager")
-                return False
+                self.logger.warning("Camera unavailable; dashboard will remain accessible")
             self.context.active_camera_db_id = self.context.camera_manager.get_camera_database_id()
             if self.context.active_camera_db_id is None:
                 self.logger.warning("Unable to resolve active camera database ID during initialization")
@@ -148,6 +148,9 @@ class Application:
             
             # Step 8: Initialize storage manager
             self.context.storage_manager = StorageManager(self.context.config.storage)
+            self.context.storage_manager.active_recording_path = lambda: (
+                self.context.recording_manager.current_video_path
+                if self.context.recording_manager.is_recording else None)
             self.logger.info("Storage manager initialized")
 
             # Step 9: Initialize Telegram alerts
@@ -162,7 +165,9 @@ class Application:
             self.logger.info("Alert manager initialized")
             
             # Step 10: Initialize stream manager
-            self.context.stream_manager = StreamManager(quality=75, target_fps=15)
+            stream = self.context.config.streaming
+            self.context.stream_manager = StreamManager(
+                quality={'low': 40, 'medium': 70, 'high': 90}[stream.quality], target_fps=stream.fps)
             self.logger.info("Stream manager initialized")
             
             # Step 11: Initialize web server
@@ -177,7 +182,7 @@ class Application:
                 if web_config.ssl_cert_path and web_config.ssl_key_path:
                     ssl_context = (web_config.ssl_cert_path, web_config.ssl_key_path)
                 else:
-                    self.logger.warning("HTTPS enabled but SSL certificate/key path not configured")
+                    raise ValueError("HTTPS requires both certificate and key paths")
 
             web_thread = threading.Thread(target=self.context.web_server.run, args=(True, ssl_context), daemon=True)
             web_thread.start()
@@ -253,6 +258,7 @@ class Application:
         """
         # Initialize
         if not self.initialize():
+            self.shutdown()
             return 1
         
         self.context.running = True
@@ -260,20 +266,22 @@ class Application:
         
         try:
             # Main application loop
-            health_check_counter = 0
-            disk_check_counter = 0
+            last_health_check = time.monotonic()
+            last_disk_check = time.monotonic()
+            last_retention_check = 0
             
             while self.context.running:
                 try:
                     # Periodic health check (every 30 seconds)
-                    health_check_counter += 1
-                    disk_check_counter += 1
-                    if health_check_counter >= 450:  # 15 FPS * 30 seconds
+                    now = time.monotonic()
+                    if now - last_health_check >= 30:
+                        if not self.context.camera_manager.cameras and self.context.config.camera.enabled:
+                            self.context.camera_manager.initialize()
                         self.context.camera_manager.check_health()
-                        health_check_counter = 0
+                        last_health_check = now
                     
                     # Periodic disk check (every 60 seconds)
-                    if disk_check_counter >= 900:  # 15 FPS * 60 seconds
+                    if now - last_disk_check >= 60 and self.context.config.recording.auto_cleanup:
                         disk_health = self.context.storage_manager.check_disk_health()
                         if disk_health['status'] == 'critical':
                             self.logger.warning(f"Disk critical: {disk_health['used_percent']}% full, triggering cleanup")
@@ -281,7 +289,10 @@ class Application:
                         elif disk_health['status'] == 'warning':
                             self.logger.warning(f"Disk warning: {disk_health['used_percent']}% full, enforcing retention")
                             self.context.storage_manager.enforce_retention_policy()
-                        disk_check_counter = 0
+                        last_disk_check = now
+                    if self.context.config.recording.auto_cleanup and now - last_retention_check >= self.context.config.storage.cleanup_check_interval:
+                        self.context.storage_manager.enforce_retention_policy()
+                        last_retention_check = now
                     
                     # Get frame from camera
                     frame_data = self.context.camera_manager.get_frame()
@@ -375,7 +386,7 @@ class Application:
             # Shutdown web server first
             if self.context.web_server:
                 self.logger.info("Shutting down web server...")
-                # Flask will stop in background thread
+                self.context.web_server.stop()
             
             # Shutdown recording
             if self.context.recording_manager:

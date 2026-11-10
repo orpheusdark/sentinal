@@ -67,7 +67,7 @@ class RecordingManager:
         """Create and configure the MP4 recorder."""
         try:
             quality = self.config.quality if hasattr(self.config, 'quality') else 'medium'
-            self.recorder = MP4RecorderDriver(quality=quality, codec='h264')
+            self.recorder = MP4RecorderDriver(quality=quality, codec=self.config.codec)
             logger.info(f"Recording manager initialized (quality: {quality})")
         except Exception as e:
             logger.error(f"Failed to initialize recording manager: {e}")
@@ -82,6 +82,9 @@ class RecordingManager:
             motion_start_time: When motion started
         """
         with self.lock:
+            if not self.config.enabled or not self.config.record_on_motion:
+                return
+            self.post_motion_buffer_end = None
             self.motion_active = True
             self.motion_start_time = motion_start_time
             self.motion_end_time = None
@@ -121,7 +124,7 @@ class RecordingManager:
         """
         with self.lock:
             # Check if we should be recording
-            now = datetime.utcnow()
+            now = frame_timestamp
             
             # Stop recording if post-motion buffer expired
             if self.is_recording and self.post_motion_buffer_end:
@@ -130,16 +133,17 @@ class RecordingManager:
                     return None
             
             # Start recording if motion is detected and not already recording
+            if not self.config.enabled:
+                self._stop_recording()
+                return None
+            if not self.config.record_on_motion and not self.is_recording:
+                self._start_recording(camera_id)
             if self.motion_active and not self.is_recording:
                 self._start_recording(camera_id)
             
             # Write frame if recording
             if self.is_recording and self.recorder:
                 result = self.recorder.write_frame(frame)
-                
-                if result.success:
-                    # Save recording info to database
-                    self._save_recording_to_db(camera_id, result)
                 
                 return result
             
@@ -169,6 +173,8 @@ class RecordingManager:
             if self.recorder.start_recording(video_path, fps, resolution):
                 self.is_recording = True
                 self.current_video_path = video_path
+                self.current_camera_id = camera_id
+                self.recording_start_time = datetime.utcnow()
                 logger.info(f"Recording started for camera {camera_id}: {video_path}")
             else:
                 logger.error(f"Failed to start recording for camera {camera_id}")
@@ -184,6 +190,8 @@ class RecordingManager:
             
             if self.recorder.stop_recording():
                 self.is_recording = False
+                self._save_recording_to_db()
+                self.post_motion_buffer_end = None
                 logger.info(f"Recording stopped: {self.current_video_path}")
             else:
                 logger.error("Failed to stop recording")
@@ -248,24 +256,24 @@ class RecordingManager:
         
         return resolution_map.get(resolution_str, (1280, 720))
     
-    def _save_recording_to_db(self, camera_id: int, result: RecordingResult):
-        """
-        Save recording info to database.
-        
-        Args:
-            camera_id: Camera ID
-            result: RecordingResult from write_frame
-        """
+    def _save_recording_to_db(self):
+        """Persist finalized metadata once, after the writer flushes the file."""
+        from database.models import Recording
         try:
-            db = get_database()
-            session = db.get_session()
-            
-            # This will be saved when recording stops, not on every frame
-            # Just track that we're recording
-            
-        except Exception as e:
-            logger.error(f"Failed to save recording to database: {e}")
-    
+            path = Path(self.current_video_path).resolve()
+            end = datetime.utcnow()
+            with get_database().get_session() as session:
+                session.add(Recording(
+                    camera_id=self.current_camera_id, filename=path.name,
+                    filepath=str(path), start_time=self.recording_start_time,
+                    end_time=end,
+                    duration_seconds=self.recorder.frames_written / self.recorder.fps,
+                    file_size_bytes=path.stat().st_size,
+                ))
+                session.commit()
+        except Exception:
+            logger.exception("Failed to persist recording metadata")
+
     def get_status(self) -> dict:
         """
         Get recording status.

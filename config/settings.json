@@ -1,16 +1,8 @@
-"""
-Default Configuration for Project Sentinel
-
-This file is loaded on first run to establish baseline configuration.
-Users can edit this file or set environment variables to override settings.
-"""
-
 {
   "app_name": "Project Sentinel",
   "version": "0.1.0",
   "debug": false,
   "auto_start": true,
-  
   "camera": {
     "enabled": true,
     "fps": 15,
@@ -18,7 +10,6 @@ Users can edit this file or set environment variables to override settings.
     "auto_reconnect": true,
     "reconnect_interval": 5
   },
-  
   "motion": {
     "enabled": true,
     "sensitivity": 40,
@@ -27,7 +18,6 @@ Users can edit this file or set environment variables to override settings.
     "cooldown_seconds": 2,
     "background_learning_frames": 30
   },
-  
   "recording": {
     "enabled": true,
     "record_on_motion": true,
@@ -36,7 +26,6 @@ Users can edit this file or set environment variables to override settings.
     "quality": "high",
     "auto_cleanup": true
   },
-  
   "storage": {
     "recordings_dir": "recordings",
     "snapshots_dir": "snapshots",
@@ -45,19 +34,17 @@ Users can edit this file or set environment variables to override settings.
     "retention_days": 30,
     "cleanup_check_interval": 3600
   },
-  
   "database": {
     "path": "data/sentinel.db",
     "enable_wal": true,
     "timeout": 30,
     "check_same_thread": false
   },
-  
   "security": {
     "enable_auth": false,
     "admin_username": "admin",
     "admin_password": "sentinel",
-    "session_secret": "sentinel-session-key",
+    "session_secret": null,
     "require_api_key": false,
     "api_key": null,
     "password_hash_algorithm": "bcrypt",
@@ -65,7 +52,6 @@ Users can edit this file or set environment variables to override settings.
     "max_login_attempts": 5,
     "lockout_duration_minutes": 15
   },
-
   "telegram": {
     "enabled": false,
     "bot_name": "notice_sentinal_bot",
@@ -76,7 +62,6 @@ Users can edit this file or set environment variables to override settings.
     "notify_startup": true,
     "notify_shutdown": false
   },
-  
   "streaming": {
     "enabled": true,
     "port": 5000,
@@ -84,15 +69,13 @@ Users can edit this file or set environment variables to override settings.
     "fps": 15,
     "bitrate_kbps": 2000
   },
-  
   "web": {
-    "host": "0.0.0.0",
+    "host": "127.0.0.1",
     "port": 5000,
     "use_https": false,
     "ssl_cert_path": null,
     "ssl_key_path": null
   },
-  
   "logging": {
     "level": "INFO",
     "format": "json",

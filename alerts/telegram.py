@@ -63,11 +63,11 @@ class TelegramAlertManager:
                 )
         except error.HTTPError as exc:
             body = exc.read().decode("utf-8", errors="ignore")
-            logger.error(f"Telegram HTTP error: {exc.code} {body}")
-            return TelegramAlertResult(success=False, status_code=exc.code, error_message=body or str(exc))
+            logger.error("Telegram HTTP error: %s", exc.code)
+            return TelegramAlertResult(success=False, status_code=exc.code, error_message='Telegram request rejected')
         except Exception as exc:
-            logger.error(f"Telegram send failed: {exc}")
-            return TelegramAlertResult(success=False, error_message=str(exc))
+            logger.error("Telegram send failed (%s)", type(exc).__name__)
+            return TelegramAlertResult(success=False, error_message='Telegram connection failed')
 
     def send_startup_alert(self, app_name: str, host: str, port: int) -> TelegramAlertResult:
         bot_line = f"Bot: {self.bot_name}\n" if self.bot_name else ""

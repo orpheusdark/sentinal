@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 from dataclasses import dataclass, asdict, field
 import logging
+import secrets
 
 logger = logging.getLogger(__name__)
 
@@ -82,7 +83,7 @@ class SecurityConfig:
     enable_auth: bool = False
     admin_username: str = "admin"
     admin_password: str = "sentinel"
-    session_secret: str = "sentinel-session-key"
+    session_secret: str = field(default_factory=lambda: secrets.token_hex(32))
     require_api_key: bool = False
     api_key: Optional[str] = None
     password_hash_algorithm: str = "bcrypt"
@@ -132,7 +133,7 @@ class LoggingConfig:
 class WebConfig:
     """Web server configuration."""
     
-    host: str = "0.0.0.0"
+    host: str = "127.0.0.1"
     port: int = 5000
     use_https: bool = False
     ssl_cert_path: Optional[str] = None
@@ -166,6 +167,29 @@ class SentinelConfig:
     
     def _validate(self):
         """Validate configuration values."""
+        for section in (self.camera, self.streaming):
+            if type(section.fps) is not int or not 1 <= section.fps <= 60:
+                raise ValueError("FPS must be an integer between 1 and 60")
+        if self.camera.resolution not in ('360p', '480p', '720p', '1080p'):
+            raise ValueError("Unsupported camera resolution")
+        if self.recording.quality not in ('low', 'medium', 'high'):
+            raise ValueError("Unsupported recording quality")
+        if type(self.recording.enabled) is not bool:
+            raise ValueError("Recording enabled must be a boolean")
+        if not 0 <= self.recording.post_motion_seconds <= 300:
+            raise ValueError("Post motion seconds must be between 0 and 300")
+        if self.motion.min_contour_area < 1 or self.motion.morph_kernel_size < 1:
+            raise ValueError("Motion area and kernel size must be positive")
+        if not 0 < self.storage.warning_disk_percent < self.storage.critical_disk_percent <= 100:
+            raise ValueError("Storage warning must be below critical threshold")
+        if not 1 <= self.storage.target_free_percent <= 90:
+            raise ValueError("Target free space must be between 1 and 90")
+        if self.security.require_api_key and not self.security.api_key:
+            raise ValueError("API key enforcement requires an API key")
+        if self.security.enable_auth and self.security.admin_password == 'sentinel':
+            raise ValueError("Set a private admin password before enabling authentication")
+        if not 1 <= self.web.port <= 65535:
+            raise ValueError("Web port must be between 1 and 65535")
         if self.motion.sensitivity < 0 or self.motion.sensitivity > 100:
             raise ValueError("Motion sensitivity must be between 0 and 100")
         
@@ -234,8 +258,8 @@ class ConfigManager:
                     file_config = json.load(f)
                     config_dict = self._deep_merge(config_dict, file_config)
                 logger.info(f"Loaded configuration from {self.config_file}")
-            except Exception as e:
-                logger.error(f"Failed to load config file {self.config_file}: {e}")
+            except (OSError, ValueError) as e:
+                raise ValueError(f"Unable to load configuration: {self.config_file}") from e
         
         # Override with environment variables
         config_dict = self._apply_env_overrides(config_dict)
@@ -317,15 +341,15 @@ class ConfigManager:
     @staticmethod
     def _set_nested(data: Dict, path: str, value: Any):
         """Set nested value using dot notation."""
-        keys = path.split("_")
-        current = data
-        
-        for key in keys[:-1]:
-            if key not in current:
-                current[key] = {}
-            current = current[key]
-        
-        current[keys[-1]] = value
+        # Match existing keys, preserving underscores within field names.
+        if path in data and not isinstance(data[path], dict):
+            data[path] = value
+            return
+        section, _, field_name = path.partition('_')
+        if section in data and isinstance(data[section], dict) and field_name in data[section]:
+            data[section][field_name] = value
+            return
+        raise ValueError(f"Unknown configuration override: {path}")
     
     @staticmethod
     def _dict_to_config(config_dict: Dict[str, Any]) -> SentinelConfig:
@@ -362,6 +386,44 @@ class ConfigManager:
         """Reload configuration from file."""
         self.config = self._load_config()
         logger.info("Configuration reloaded")
+
+    def save_public_patch(self, patch):
+        """Validate and atomically persist editable settings; apply on restart."""
+        allowed = {
+            'camera': {'fps', 'resolution'},
+            'motion': {'sensitivity', 'min_contour_area'},
+            'recording': {'enabled', 'quality', 'post_motion_seconds'},
+            'storage': {'retention_days', 'critical_disk_percent', 'target_free_percent'},
+        }
+        if not isinstance(patch, dict) or not patch:
+            raise ValueError('Settings must be a non-empty object')
+        for section, values in patch.items():
+            if section not in allowed or not isinstance(values, dict) or set(values) - allowed[section]:
+                raise ValueError('Unsupported settings field')
+            for key, value in values.items():
+                expected = type(getattr(getattr(self.config, section), key))
+                if type(value) is not expected:
+                    raise ValueError(f'Invalid type for {section}.{key}')
+        candidate = self._deep_merge(self.config.to_dict(), patch)
+        self._dict_to_config(candidate)
+        # Start from the disk file so environment secrets are never written.
+        disk = json.loads(self.config_file.read_text()) if self.config_file.exists() else {}
+        disk = self._deep_merge(disk, patch)
+        self.config_file.parent.mkdir(parents=True, exist_ok=True)
+        import tempfile
+        with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', dir=self.config_file.parent,
+                                         delete=False, suffix='.tmp') as stream:
+            temp_path = Path(stream.name)
+            json.dump(disk, stream, indent=2)
+        try:
+            os.replace(temp_path, self.config_file)
+        finally:
+            temp_path.unlink(missing_ok=True)
+
+
+def save_public_settings(patch):
+    get_config()
+    _config_manager.save_public_patch(patch)
 
 
 # Global configuration instance

@@ -90,7 +90,7 @@ class CameraManager:
                 camera_index=0,
                 name="builtin",
                 target_fps=self.config.fps,
-                resolution="720p"
+                resolution=self.config.resolution
             )
             
             if driver.connect():

@@ -12,7 +12,7 @@ import sys
 from pathlib import Path
 from datetime import datetime
 from typing import Optional, Dict, Any
-from pythonjsonlogger import jsonlogger
+from pythonjsonlogger import json as jsonlogger
 
 
 class JSONFormatter(jsonlogger.JsonFormatter):

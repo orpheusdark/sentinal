@@ -77,7 +77,7 @@ class SystemInfo:
         
         return {
             "timestamp": datetime.utcnow().isoformat(),
-            "cpu_percent": psutil.cpu_percent(interval=1),
+            "cpu_percent": psutil.cpu_percent(interval=None),
             "memory_percent": mem.percent,
             "memory_used_mb": mem.used / (1024**2),
             "memory_available_mb": mem.available / (1024**2),
@@ -142,7 +142,7 @@ class ResourceMonitor:
     @staticmethod
     def check_cpu_health() -> Tuple[bool, str]:
         """Check if CPU usage is within acceptable limits."""
-        cpu_percent = psutil.cpu_percent(interval=1)
+        cpu_percent = psutil.cpu_percent(interval=None)
         
         if cpu_percent > ResourceMonitor.RECORDING_CPU_THRESHOLD:
             return False, f"High CPU usage: {cpu_percent:.1f}%"

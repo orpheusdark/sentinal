@@ -35,7 +35,8 @@ class SettingsPage {
                 this.populateForm();
             }
         } catch (error) {
-            console.error('Error loading config:', error);
+            this.showMessage('Unable to load configuration. Check your connection.', 'error');
+            document.getElementById('saveBtn').disabled = true;
         }
     }
 
@@ -45,14 +46,14 @@ class SettingsPage {
         document.getElementById('cameraResolution').value = this.config.camera?.resolution || '720p';
 
         // Motion settings
-        document.getElementById('motionSensitivity').value = this.config.motion?.sensitivity || 40;
-        document.getElementById('sensitivityValue').textContent = this.config.motion?.sensitivity || 40;
+        document.getElementById('motionSensitivity').value = this.config.motion?.sensitivity ?? 30;
+        document.getElementById('sensitivityValue').textContent = this.config.motion?.sensitivity ?? 30;
         document.getElementById('minContourArea').value = this.config.motion?.min_contour_area || 500;
 
         // Recording settings
         document.getElementById('recordingEnabled').checked = this.config.recording?.enabled ?? true;
         document.getElementById('recordingQuality').value = this.config.recording?.quality || 'medium';
-        document.getElementById('postMotionSeconds').value = this.config.recording?.post_motion_seconds || 5;
+        document.getElementById('postMotionSeconds').value = this.config.recording?.post_motion_seconds ?? 10;
 
         // Storage settings
         document.getElementById('retentionDays').value = this.config.storage?.retention_days || 30;
@@ -83,14 +84,17 @@ class SettingsPage {
                 },
             };
 
-            // TODO: Send to server
-            // For now just show success message
-            this.showMessage('Settings saved successfully', 'success');
-
-            console.log('Settings to save:', settings);
+            if (![...document.querySelectorAll('form')].every(form => form.reportValidity())) return;
+            const response = await fetch('/api/config', {
+                method: 'PUT', headers: {'Content-Type': 'application/json', 'X-Sentinel-Request': 'dashboard'},
+                body: JSON.stringify(settings), signal: AbortSignal.timeout(8000)
+            });
+            const result = await response.json();
+            if (!response.ok || !result.success) throw new Error(result.error || 'Unable to save');
+            this.showMessage(result.message, 'success');
         } catch (error) {
             console.error('Error saving settings:', error);
-            this.showMessage('Error saving settings', 'error');
+            this.showMessage(error.message, 'error');
         }
     }
 
@@ -99,17 +103,17 @@ class SettingsPage {
             // Reset to defaults
             document.getElementById('cameraFps').value = 15;
             document.getElementById('cameraResolution').value = '720p';
-            document.getElementById('motionSensitivity').value = 40;
-            document.getElementById('sensitivityValue').textContent = 40;
-            document.getElementById('minContourArea').value = 500;
+            document.getElementById('motionSensitivity').value = 30;
+            document.getElementById('sensitivityValue').textContent = 30;
+            document.getElementById('minContourArea').value = 300;
             document.getElementById('recordingEnabled').checked = true;
             document.getElementById('recordingQuality').value = 'medium';
-            document.getElementById('postMotionSeconds').value = 5;
+            document.getElementById('postMotionSeconds').value = 10;
             document.getElementById('retentionDays').value = 30;
             document.getElementById('criticalDiskPercent').value = 95;
             document.getElementById('targetFreePercent').value = 60;
 
-            this.showMessage('Settings restored to defaults', 'success');
+            this.showMessage('Default values loaded. Save Settings to persist them.', 'success');
         }
     }
 
