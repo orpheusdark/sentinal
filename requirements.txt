@@ -1,5 +1,5 @@
 # Runtime only. Test and release tooling is in requirements-dev.txt.
-opencv-python>=4.10,<5
+opencv-python>=5.0.0.93,<6
 numpy>=1.26,<3
 Flask>=3.1.2,<4
 Werkzeug>=3.1.3,<4
