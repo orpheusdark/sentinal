@@ -27,7 +27,7 @@ class Diagnostics {
             for (const pipeline of d.camera_pipelines) {
                 const row = document.createElement('div'); row.className = 'event-item';
                 const title = document.createElement('h3'); title.textContent = pipeline.name;
-                const info = document.createElement('p'); info.textContent = `${pipeline.observed_fps} observed / ${pipeline.target_fps} target FPS · ${pipeline.processing_ms} ms processing · ${pipeline.errors} errors · ${pipeline.recording ? 'Recording' : 'Standby'} · ${pipeline.scheduled ? 'Schedule active' : 'Outside schedule'}`;
+                const info = document.createElement('p'); info.textContent = `${pipeline.connected ? 'Connected' : 'Disconnected'} · ${pipeline.observed_fps} observed / ${pipeline.target_fps} target FPS · ${pipeline.processing_ms} ms processing · ${pipeline.errors} errors · ${pipeline.recording ? 'Recording' : 'Standby'} · ${pipeline.scheduled ? 'Schedule active' : 'Outside schedule'} · Last frame: ${pipeline.frame_age_seconds == null ? 'never' : pipeline.frame_age_seconds + 's ago'}`;
                 const detection = document.createElement('p'); detection.className = 'help-text'; detection.textContent = pipeline.object_detector.backend + (pipeline.object_detector.error ? ': ' + pipeline.object_detector.error : '');
                 row.append(title,info,detection); pipelines.append(row);
             }

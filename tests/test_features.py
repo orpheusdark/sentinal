@@ -140,3 +140,11 @@ def test_onnx_person_and_vehicle_output_without_model_download():
     assert {item['label'] for item in results}=={'person','car'}
     detector.detect(np.zeros((640,640,3),np.uint8),now=10.2)
     assert detector.net.forward.call_count==1
+
+
+def test_global_recording_switch_disables_every_profile(tmp_path):
+    from camera.pipeline import CameraPipeline
+    cfg=get_config();cfg.recording.enabled=False
+    pipeline=CameraPipeline('builtin_0',1,CameraProfile(recording_enabled=True),cfg,Mock(),None)
+    assert not pipeline.recorder.config.enabled
+    pipeline.stop()

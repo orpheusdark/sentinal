@@ -104,8 +104,12 @@ class CameraPipeline:
         else: self.finalize()
 
     def status(self):
+        health=getattr(self.camera_manager,'camera_health',{})
+        health=health.get(self.camera_id,{}) if isinstance(health,dict) else {}
         return {'camera_id':self.db_id,'driver_id':self.camera_id,'name':self.profile.name,
-            'frames':self.frames,'errors':self.errors,'last_frame':self.last_frame.isoformat() if self.last_frame else None,
+            'frames':self.frames,'errors':self.errors+health.get('error_count',0),'connected':bool(health.get('connected',False)),
+            'last_frame':self.last_frame.isoformat() if self.last_frame else None,
+            'frame_age_seconds':round((datetime.utcnow()-self.last_frame).total_seconds(),1) if self.last_frame else None,
             'processing_ms':round(self.processing_ms,2),'observed_fps':round(self.frames/max(1,time.monotonic()-self.started),2),
             'target_fps':self.profile.fps,'scheduled':self.scheduled,'recording':self.recorder.is_recording,
             'worker_alive':bool(self.worker and self.worker.is_alive()),'objects':self.object_results,

@@ -68,6 +68,7 @@ class BuiltinCameraDriver(CameraDriver):
         self.cap = None
         self.last_frame_time = 0
         self.frame_interval = 1.0 / target_fps
+        self._last_frame_warning = -float('inf')
     
     @capture_locked
     def connect(self) -> bool:
@@ -168,7 +169,9 @@ class BuiltinCameraDriver(CameraDriver):
             ret, frame = self.cap.read()
             
             if not ret or frame is None:
-                logger.warning(f"Failed to read frame from {self.name}")
+                if time.monotonic()-self._last_frame_warning>=5:
+                    logger.warning(f"Failed to read frame from {self.name}")
+                    self._last_frame_warning=time.monotonic()
                 return None
             
             self.last_frame_time = time.time()

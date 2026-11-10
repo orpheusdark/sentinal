@@ -42,6 +42,7 @@ def test_playback_metadata_seek_thumbnail_and_time_validation(tmp_path):
         assert result.status_code==200 and result.json['data']['frames']==10
         frame=client.get(f'/api/recordings/{row}/frame?time=0.5')
         assert frame.status_code==200 and frame.mimetype=='image/jpeg'
+        assert "img-src 'self' data: blob:" in frame.headers['Content-Security-Policy']
         decoded=cv2.imdecode(np.frombuffer(frame.data,np.uint8),cv2.IMREAD_COLOR)
         assert decoded.shape[:2]==(48,64)
         assert decoded.mean()>70
