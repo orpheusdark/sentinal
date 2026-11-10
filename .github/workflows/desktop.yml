@@ -48,7 +48,7 @@ jobs:
         run: ./scripts/sign_windows.ps1 -TargetFile dist/Sentinel-Setup-Windows.exe -RequireSigning:($env:REQUIRE_SIGNING -eq 'true')
       - if: runner.os == 'Linux'
         run: tar -czf dist/Sentinel-Linux.tar.gz -C dist Sentinel
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: Sentinel-${{ runner.os }}
           path: |
