@@ -1,6 +1,6 @@
 {
   "app_name": "Project Sentinel",
-  "version": "0.2.0",
+  "version": "0.3.0rc1",
   "debug": false,
   "auto_start": true,
   "camera": {
@@ -8,7 +8,9 @@
     "fps": 15,
     "resolution": "720p",
     "auto_reconnect": true,
-    "reconnect_interval": 5
+    "reconnect_interval": 5,
+    "sources": [],
+    "opencv_threads": 1
   },
   "motion": {
     "enabled": true,
@@ -16,7 +18,13 @@
     "min_contour_area": 500,
     "morph_kernel_size": 5,
     "cooldown_seconds": 2,
-    "background_learning_frames": 30
+    "background_learning_frames": 30,
+    "zones": [],
+    "schedule": [],
+    "object_detection_enabled": false,
+    "object_model_path": null,
+    "object_confidence": 0.5,
+    "object_min_interval": 1.0
   },
   "recording": {
     "enabled": true,
@@ -24,7 +32,8 @@
     "post_motion_seconds": 10,
     "codec": "mp4v",
     "quality": "high",
-    "auto_cleanup": true
+    "auto_cleanup": true,
+    "max_duration_seconds": 300
   },
   "storage": {
     "recordings_dir": "recordings",
@@ -74,7 +83,8 @@
     "port": 5000,
     "use_https": false,
     "ssl_cert_path": null,
-    "ssl_key_path": null
+    "ssl_key_path": null,
+    "check_updates": false
   },
   "logging": {
     "level": "INFO",
