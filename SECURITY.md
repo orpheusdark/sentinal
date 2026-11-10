@@ -1,6 +1,6 @@
 # Security policy
 
-Sentinel 0.2.x is currently a preview. Security fixes are developed on `main` and included in subsequent preview releases; older preview binaries do not receive separate backports.
+Sentinel 0.3.x is currently a preview. Security fixes are developed on `main` and included in subsequent preview releases; older preview binaries do not receive separate backports.
 
 ## Reporting a vulnerability
 
