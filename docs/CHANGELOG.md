@@ -4,6 +4,8 @@
 
 Added native desktop launcher and Windows packaging, per-user installer builder, native build workflow, responsive dashboard redesign, archive pagination, local preview pause/refresh controls, real validated settings persistence and comprehensive operating/developer documentation.
 
+Continuous recording now remains active when a motion event ends; post-motion stop timers apply only to motion-triggered recording. Native packages preserve executable permissions and include a macOS camera usage description.
+
 Fixed invalid configuration JSON; underscore environment overrides; duplicate SQLite index names; SQLAlchemy health-check SQL; shared single-connection pooling; API session cleanup; recording metadata persistence; missing recording schema attributes; recording download filename/root containment; disabled recording behavior; renewed-motion tail timer; camera resolution propagation; nonexistent cleanup helpers; active/symlink cleanup safety; periodic maintenance timing; missing-camera dashboard startup; and graceful web shutdown.
 
 Hardened session secret generation, cookie/response headers, redirect validation, API key handling, network binding, write-origin checks, HTTPS certificate verification and Telegram error redaction. Removed unused runtime dependencies, invalid unavailable asyncio-contextmanager pin and tracked runtime artifacts. Kept existing source launch and supervisors.
