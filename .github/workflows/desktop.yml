@@ -36,6 +36,9 @@ jobs:
           REQUIRE_SIGNING: ${{ inputs.require_windows_signing }}
         run: ./scripts/sign_windows.ps1 -TargetFile dist/Sentinel/Sentinel.exe -RequireSigning:($env:REQUIRE_SIGNING -eq 'true')
       - if: runner.os == 'Windows'
+        name: Package portable Windows application
+        run: python -c "import shutil; shutil.make_archive('dist/Sentinel-Windows-portable','zip','dist','Sentinel')"
+      - if: runner.os == 'Windows'
         run: python scripts/build_windows_setup.py
       - name: Sign Windows installer when configured
         if: runner.os == 'Windows'
@@ -53,5 +56,6 @@ jobs:
           name: Sentinel-${{ runner.os }}
           path: |
             dist/Sentinel-Setup-Windows.exe
+            dist/Sentinel-Windows-portable.zip
             dist/Sentinel-Linux.tar.gz
           retention-days: 14
