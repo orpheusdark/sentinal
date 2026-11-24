@@ -7,7 +7,7 @@ certifi==2026.10.23
 charset-normalizer==3.5.2
 click==8.5.1
 colorama==0.4.6
-coverage==7.17.2
+coverage==7.17.4
 cyclonedx-python-lib==11.12.0
 defusedxml==0.7.1
 filelock==4.2.10
